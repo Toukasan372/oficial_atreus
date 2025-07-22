@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
+Flask
+gunicorn
 sqlalchemy
 jinja2
 python-multipart
