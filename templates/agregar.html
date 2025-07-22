@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Agregar Negocio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 d-flex align-items-center">
+  <i class="bi bi-plus-circle me-2"></i> Agregar Negocio
+</h2>
+
+<form method="POST" novalidate>
+  <div class="mb-3">
+    <label class="form-label">Nombre del negocio *</label>
+    <input type="text" class="form-control" name="nombre" required />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Tipo de negocio *</label>
+    <select class="form-control" name="tipo_negocio" id="tipoNegocio" required>
+      <option value="negocio">Negocio</option>
+      <option value="casa_matriz">Casa Matriz</option>
+      <option value="hijo">Negocio Hijo</option>
+    </select>
+  </div>
+
+  <div class="mb-3 d-none" id="campoPadre">
+    <label class="form-label">Seleccionar Casa Matriz</label>
+    <select class="form-control" name="padre_id">
+      <option value="">-- Selecciona una casa matriz --</option>
+      {% for matriz in casas_matriz %}
+      <option value="{{ matriz.id }}">{{ matriz.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Propietario *</label>
+    <input type="text" class="form-control" name="propietario" required />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Administrador</label>
+    <input type="text" class="form-control" name="admin" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Teléfono del propietario</label>
+    <input type="text" class="form-control" name="tel_propietario" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Teléfono del administrador</label>
+    <input type="text" class="form-control" name="tel_admin" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Dirección</label>
+    <textarea class="form-control" name="direccion"></textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Comercial</label>
+    <input type="text" class="form-control" name="comercial" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Licencia *</label>
+    <input type="text" class="form-control" name="licencia" required pattern="\\d*" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Moneda de Licencia</label>
+    <select class="form-control" name="moneda_licencia">
+      <option value="USD" selected>USD</option>
+      <option value="CUP">CUP</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Conectividad (CUP)</label>
+    <input type="number" step="0.01" min="0" class="form-control" name="conectividad" />
+  </div>
+
+  <button type="submit" class="btn btn-primary">Agregar Negocio</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const tipoSelect = document.getElementById('tipoNegocio');
+    const campoPadre = document.getElementById('campoPadre');
+
+    tipoSelect.addEventListener('change', () => {
+      if (tipoSelect.value === 'hijo') {
+        campoPadre.classList.remove('d-none');
+      } else {
+        campoPadre.classList.add('d-none');
+      }
+    });
+
+    // Activar al cargar si ya había selección
+    if (tipoSelect.value === 'hijo') {
+      campoPadre.classList.remove('d-none');
+    }
+  });
+</script>
+{% endblock %}

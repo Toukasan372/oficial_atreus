@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Inicio - Gestión Negocios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-house-door"></i> Negocios registrados</h2>
+  {% if session.get('user_role') == 'admin' %}
+  <a href="{{ url_for('generar_todas_facturas') }}" class="btn btn-dark">
+    <i class="bi bi-archive"></i> Generar todas las facturas
+  </a>
+  {% endif %}
+</div>
+
+<!-- Buscador -->
+<div class="mb-4">
+  <input id="buscador" type="text" class="form-control" placeholder="Buscar por nombre o comercial...">
+</div>
+
+<!-- Contenedor de resultados -->
+<div id="resultados-negocios">
+  {% include 'partials/_lista_negocios.html' %}
+</div>
+
+<!-- Paginación -->
+<nav aria-label="Paginación de negocios">
+  <ul class="pagination justify-content-center mt-4">
+    <li class="page-item {% if pagina == 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('inicio', pagina=pagina - 1) }}" tabindex="-1">&laquo;</a>
+    </li>
+
+    {% for p in range(1, total_paginas + 1) %}
+      <li class="page-item {% if p == pagina %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('inicio', pagina=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+
+    <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('inicio', pagina=pagina + 1) }}">&raquo;</a>
+    </li>
+  </ul>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const buscador = document.getElementById("buscador");
+  const contenedor = document.getElementById("resultados-negocios");
+
+  buscador.addEventListener("input", () => {
+    const query = buscador.value.trim();
+    fetch(`/buscar?q=${encodeURIComponent(query)}`)
+      .then(res => res.text())
+      .then(html => {
+        contenedor.innerHTML = html;
+      });
+  });
+});
+</script>
+{% endblock %}

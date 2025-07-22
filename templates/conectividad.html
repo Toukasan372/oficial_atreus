@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Gestión de Conectividad</h2>
+
+<form method="POST" action="{{ url_for('conectividad') }}">
+  <div class="mb-3">
+    <label for="negocio_id" class="form-label">Selecciona un negocio:</label>
+    <select class="form-select" id="negocio_id" name="negocio_id" required>
+      <option value="" disabled selected>-- Elige un negocio --</option>
+      {% for negocio in negocios %}
+      <option value="{{ negocio.id }}">{{ negocio.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="conectividad" class="form-label">Agregar Conectividad:</label>
+    <input type="number" step="0.01" class="form-control" id="conectividad" name="conectividad" placeholder="0.0" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Agregar</button>
+</form>
+
+{% endblock %}

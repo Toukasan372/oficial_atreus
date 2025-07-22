@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Facturar - {{ comercial }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">🧾 Facturar negocios asignados a <b>{{ comercial }}</b></h2>
+
+<table class="table table-bordered">
+  <thead class="table-light">
+    <tr>
+      <th>Nombre</th>
+      <th>Tipo</th>
+      <th>Licencia</th>
+      <th>Conectividad</th>
+      <th>Estado</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for n in negocios %}
+    <tr>
+      <td>{{ n.nombre }}</td>
+      <td>{{ n.tipo }}</td>
+      <td>{{ n.licencia or '0' }} USD</td>
+      <td>{{ n.conectividad or '0' }} CUP</td>
+      <td>Por facturar</td>
+      <td>
+        <form action="{{ url_for('generar_factura_individual') }}" method="post" target="_blank">
+          <input type="hidden" name="negocio_id" value="{{ n.id }}">
+          <button type="submit" class="btn btn-primary btn-sm">Generar PDF</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="6" class="text-center text-muted">No hay negocios asignados</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

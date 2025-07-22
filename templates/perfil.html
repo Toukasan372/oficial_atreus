@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Perfil de Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <!-- FOTO Y NOMBRE -->
+    <div class="col-md-4 text-center">
+      <div class="card p-4">
+        <!-- Avatar con iniciales si no hay foto -->
+        <div class="avatar-circle mx-auto mb-3" style="width: 120px; height: 120px; background:#007bff; color:white; font-size: 48px; line-height:120px; border-radius:50%;">
+          {{ usuario.email[0]|upper }}
+        </div>
+        <h3>{{ usuario.email }}</h3>
+        <p class="text-muted">{{ usuario.role.name|capitalize }}</p>
+        <a href="{{ url_for('editar_perfil') }}" class="btn btn-primary btn-sm mb-2 w-100"><i class="bi bi-pencil-square"></i> Editar perfil</a>
+      </div>
+    </div>
+
+    <!-- INFORMACION Y CONFIGURACION -->
+    <div class="col-md-8">
+      <!-- Información Personal Ampliada -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <i class="bi bi-person-circle"></i> Información Personal
+        </div>
+        <div class="card-body">
+            <p><strong>Nombre completo:</strong> {{ usuario.nombre_completo or "No asignado" }}</p>
+          <p><strong>Email:</strong> {{ usuario.email }}</p>
+          <p><strong>Rol actual:</strong> {{ usuario.role.name|capitalize }}</p>
+          {% if usuario.fecha_registro %}
+          <p><strong>Fecha de registro:</strong> {{ usuario.fecha_registro.strftime('%d/%m/%Y') }}</p>
+          {% endif %}
+          {% if usuario.ultimo_login %}
+          <p><strong>Último inicio de sesión:</strong> {{ usuario.ultimo_login.strftime('%d/%m/%Y %H:%M') }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Permisos y Acceso -->
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <i class="bi bi-shield-lock"></i> Permisos y acceso
+        </div>
+        <div class="card-body">
+          <p>Rol: <strong>{{ usuario.role.name|capitalize }}</strong></p>
+          <p>Permisos activos:</p>
+          <ul>
+            {% if usuario.role.name == 'admin' %}
+              <li><i class="bi bi-check-circle-fill text-success"></i> Admin puede hacer todo</li>
+            {% elif usuario.role.name == 'comercial' %}
+              <li><i class="bi bi-check-circle-fill text-success"></i> Comercial puede crear negocios</li>
+            {% elif usuario.role.name == 'asistente' %}
+              <li><i class="bi bi-check-circle-fill text-success"></i> Asistente solo puede ver</li>
+            {% else %}
+              <li><i class="bi bi-x-circle-fill text-danger"></i> Sin permisos específicos</li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+
+
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+.avatar-circle {
+  font-weight: bold;
+  user-select: none;
+}
+</style>
+{% endblock %}

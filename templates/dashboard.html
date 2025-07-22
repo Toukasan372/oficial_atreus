@@ -1,0 +1,18 @@
+<h2>Hola, {{ username }}!</h2>
+<a href="{{ url_for('logout') }}">Cerrar sesión</a> |
+<a href="{{ url_for('add_client') }}">Agregar cliente</a>
+
+<h3>Tus clientes:</h3>
+<ul>
+  {% for c in clients %}
+    <li>{{ c.name }} - {{ c.email }} - {{ c.phone }} - <a href="{{ url_for('delete_client', client_id=c.id) }}">Eliminar</a></li>
+  {% else %}
+    <li>No tienes clientes aún</li>
+  {% endfor %}
+</ul>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul>{% for msg in messages %}<li>{{ msg }}</li>{% endfor %}</ul>
+  {% endif %}
+{% endwith %}

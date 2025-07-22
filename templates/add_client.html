@@ -1,0 +1,13 @@
+<h2>Agregar cliente</h2>
+<form method="POST">
+  Nombre: <input name="name" required><br>
+  Email: <input name="email" type="email"><br>
+  Teléfono: <input name="phone"><br>
+  <button type="submit">Agregar</button>
+</form>
+<a href="{{ url_for('dashboard') }}">Volver</a>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul>{% for msg in messages %}<li>{{ msg }}</li>{% endfor %}</ul>
+  {% endif %}
+{% endwith %}

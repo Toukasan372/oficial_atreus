@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ negocio.nombre }} - Detalle{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 d-flex align-items-center">
+  <i class="bi bi-building me-2"></i> {{ negocio.nombre }}
+
+  {% if session.get('user_role') == 'admin' %}
+  <button type="button" class="btn btn-outline-primary btn-sm ms-auto"
+          data-bs-toggle="modal"
+          data-bs-target="#modalEditar"
+          title="Editar negocio">
+    <i class="bi bi-pencil-square"></i> Editar
+  </button>
+
+  <button type="button" class="btn btn-outline-danger btn-sm ms-2"
+          data-bs-toggle="modal"
+          data-bs-target="#modalEliminar"
+          title="Eliminar negocio">
+    <i class="bi bi-trash"></i> Eliminar
+  </button>
+  {% endif %}
+</h2>
+
+<ul class="list-group shadow-sm">
+  <li class="list-group-item"><strong>Propietario:</strong> {{ negocio.propietario }}</li>
+  <li class="list-group-item"><strong>Administrador:</strong> {{ negocio.admin }}</li>
+  <li class="list-group-item"><strong>Tel. Propietario:</strong> {{ negocio.tel_propietario or 'No especificado' }}</li>
+  <li class="list-group-item"><strong>Tel. Administrador:</strong> {{ negocio.tel_admin or 'No especificado' }}</li>
+
+  {% if negocio.telefonos_extras %}
+    {% set telefonos = negocio.telefonos_extras | from_json %}
+    {% if telefonos %}
+    <li class="list-group-item">
+      <strong>Otros teléfonos:</strong>
+      <ul class="mb-0 ps-3">
+        {% for item in telefonos %}
+        <li>
+          <strong>{{ item.nombre or 'Sin nombre' }}</strong>: {{ item.telefono or 'No especificado' }}
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endif %}
+  {% endif %}
+
+  <li class="list-group-item"><strong>Dirección:</strong> {{ negocio.direccion or '0' }}</li>
+  <li class="list-group-item"><strong>Observación:</strong> {{ negocio.observacion or 'No especificada' }}</li>
+  <li class="list-group-item">
+    <strong>Conectividad Actual:</strong>
+    {{ (negocio.conectividad | int if negocio.conectividad is not none and negocio.conectividad == negocio.conectividad|int else negocio.conectividad) }} CUP
+  </li>
+
+  {% if session.get('user_role') != 'asistente' %}
+  <li class="list-group-item"><strong>Licencia:</strong> {{ negocio.licencia or 'No especificado' }} USD</li>
+  {% endif %}
+
+  <li class="list-group-item"><strong>Comercial:</strong> {{ negocio.comercial or 'No especificado' }}</li>
+</ul>
+
+{% if negocio.tipo == 'casa_matriz' and negocio.hijos %}
+<button class="btn btn-info ms-3" data-bs-toggle="modal" data-bs-target="#modalHijos">
+  <i class="bi bi-diagram-3"></i> Ver negocios hijos ({{ negocio.hijos|length }})
+</button>
+{% elif negocio.tipo == 'hijo' and negocio.padre %}
+<div class="alert alert-info mt-3">
+  Este negocio pertenece a la casa matriz: <strong>{{ negocio.padre.nombre }}</strong>
+  <a href="{{ url_for('detalle_negocio', id=negocio.padre.id) }}" class="btn btn-sm btn-outline-primary ms-2">
+    Ver Casa Matriz
+  </a>
+</div>
+{% endif %}
+
+<a href="{{ url_for('inicio') }}" class="btn btn-secondary mt-4">
+  <i class="bi bi-arrow-left-circle"></i> Volver
+</a>
+{% endblock %}
+
+{% block modals %}
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true" aria-modal="true" role="dialog">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('editar_negocio', id=negocio.id) }}" class="needs-validation" novalidate id="formEditar">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalEditarLabel">Editar negocio</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="nombreEdit" class="form-label">Nombre del negocio *</label>
+            <input type="text" class="form-control" id="nombreEdit" name="nombre" required value="{{ negocio.nombre }}" />
+            <div class="invalid-feedback">Por favor ingresa el nombre del negocio.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Teléfonos adicionales</label>
+            <div id="contenedorTelefonosExtras"></div>
+            <input type="hidden" name="telefonos_extras" id="telefonos_extras">
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="agregarTelefonoExtra()">
+            <i class="bi bi-plus-circle"></i> Añadir otro número
+            </button>
+          </div>
+
+          <div class="mb-3">
+            <label for="propietarioEdit" class="form-label">Propietario *</label>
+            <input type="text" class="form-control" id="propietarioEdit" name="propietario" required value="{{ negocio.propietario }}" />
+            <div class="invalid-feedback">Por favor ingresa el propietario.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="adminEdit" class="form-label">Administrador *</label>
+            <input type="text" class="form-control" id="adminEdit" name="admin" required value="{{ negocio.admin }}" />
+            <div class="invalid-feedback">Por favor ingresa el administrador.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="telPropEdit" class="form-label">Teléfono del propietario</label>
+            <input type="tel" class="form-control" id="telPropEdit" name="tel_propietario" value="{{ negocio.tel_propietario }}" />
+          </div>
+
+          <div class="mb-3">
+            <label for="telAdminEdit" class="form-label">Teléfono del administrador</label>
+            <input type="tel" class="form-control" id="telAdminEdit" name="tel_admin" value="{{ negocio.tel_admin }}" />
+          </div>
+
+          <div class="mb-3">
+            <label for="direccionEdit" class="form-label">Dirección</label>
+            <textarea class="form-control" id="direccionEdit" name="direccion" rows="2">{{ negocio.direccion }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="comercialEdit" class="form-label">Comercial que atiende</label>
+            <input type="text" class="form-control" id="comercialEdit" name="comercial" value="{{ negocio.comercial }}" />
+          </div>
+
+          <div class="mb-3">
+            <label for="observacion" class="form-label">Observación</label>
+            <textarea class="form-control" id="observacion" name="observacion" rows="3">{{ negocio.observacion or '' }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="licenciaEdit" class="form-label">Licencia</label>
+            <input type="text" class="form-control" id="licenciaEdit" name="licencia" value="{{ negocio.licencia }}" />
+          </div>
+
+          <div class="mb-3">
+            <label for="conectividadEdit" class="form-label">Conectividad (CUP)</label>
+            <input type="number" step="0.01" min="0" class="form-control" id="conectividadEdit" name="conectividad" value="{{ negocio.conectividad or '' }}">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnGuardarEditar">
+            <span id="spinnerEditar" class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+            Guardar cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Eliminar -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true" aria-modal="true" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('eliminar_negocio', id=negocio.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalEliminarLabel">Confirmar eliminación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          ¿Estás seguro de eliminar el negocio <strong>{{ negocio.nombre }}</strong>? Esta acción no se puede deshacer.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Negocios Hijos -->
+<div class="modal fade" id="modalHijos" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Negocios Hijos de {{ negocio.nombre }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% for hijo in negocio.hijos %}
+        <div class="border rounded p-3 mb-3">
+          <p><strong>Nombre:</strong> {{ hijo.nombre }}</p>
+          <p><strong>Teléfono:</strong> {{ hijo.tel_propietario or hijo.tel_admin or 'No especificado' }}</p>
+          <a href="{{ url_for('detalle_negocio', id=hijo.id) }}" class="btn btn-sm btn-outline-primary mt-2">
+            Ver Detalles
+          </a>
+        </div>
+        {% else %}
+        <p>No hay negocios hijos registrados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let telefonosExtras = {{ negocio.telefonos_extras | safe if negocio.telefonos_extras else '[]' }};
+
+function renderizarTelefonos() {
+  const contenedor = document.getElementById('contenedorTelefonosExtras');
+  contenedor.innerHTML = '';
+  telefonosExtras.forEach((item, index) => {
+    contenedor.innerHTML += `
+      <div class="input-group mb-2">
+        <input type="text" class="form-control" placeholder="Nombre" value="${item.nombre}" 
+               onchange="actualizarTelefono(${index}, 'nombre', this.value)">
+        <input type="text" class="form-control" placeholder="Teléfono" value="${item.telefono}" 
+               onchange="actualizarTelefono(${index}, 'telefono', this.value)">
+        <button class="btn btn-outline-danger" type="button" onclick="eliminarTelefono(${index})">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `;
+  });
+  actualizarCampoOculto();
+}
+
+function agregarTelefonoExtra() {
+  telefonosExtras.push({ nombre: "", telefono: "" });
+  renderizarTelefonos();
+}
+
+function actualizarTelefono(index, campo, valor) {
+  telefonosExtras[index][campo] = valor;
+  actualizarCampoOculto();
+}
+
+function eliminarTelefono(index) {
+  telefonosExtras.splice(index, 1);
+  renderizarTelefonos();
+}
+
+function actualizarCampoOculto() {
+  document.getElementById('telefonos_extras').value = JSON.stringify(telefonosExtras);
+}
+
+// Inicializa al cargar
+document.addEventListener("DOMContentLoaded", function() {
+  renderizarTelefonos();
+});
+</script>
+
+{% endblock %}

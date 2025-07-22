@@ -1,0 +1,22 @@
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+  {% for negocio in negocios %}
+  <div class="col">
+    <div class="card h-100 shadow-sm border-0">
+      <div class="card-body">
+        <h5 class="card-title d-flex align-items-center">
+          <i class="bi bi-building me-2"></i> {{ negocio.nombre }}
+        </h5>
+        <p class="card-text text-muted mb-2"><strong>Comercial:</strong> {{ negocio.comercial }}</p>
+        {% if session.get('user_role') != 'asistente' %}
+        <p class="card-text text-muted"><strong>Licencia:</strong> {{ negocio.licencia }}</p>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-transparent border-0 d-flex justify-content-between">
+        <a href="{{ url_for('detalle_negocio', id=negocio.id) }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-eye"></i>   Ver detalles
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
