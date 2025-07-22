@@ -194,7 +194,7 @@ def register():
         if db_users.query(User).filter_by(email=email).first():
             flash('El correo ya está registrado.', 'danger')
             return redirect(url_for('register'))
-        user_role = db_users.query(Role).filter_by(name='usuario').first()
+        user_role = db_users.query(Role).filter_by(name='asistente').first()
         new_user = User(email=email, role=user_role)
         new_user.set_password(password)
         db_users.add(new_user)
