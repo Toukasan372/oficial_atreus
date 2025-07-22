@@ -1,5 +1,11 @@
-Flask
 gunicorn
 sqlalchemy
 jinja2
 python-multipart
+Flask==2.3.2
+Flask-SQLAlchemy==3.0.3
+SQLAlchemy==2.0.19
+Werkzeug==2.3.7
+PyPDF2==3.0.1
+reportlab==3.6.14
+
