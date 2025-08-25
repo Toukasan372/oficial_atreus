@@ -1,0 +1,130 @@
+<div class="modal-header">
+  <h5 class="modal-title">Cliente: {{ cliente.nombre_negocio }}</h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Estado</label>
+      <select class="form-select" id="cli-estado">
+        <option value="">—</option>
+        {% for e in estados %}
+          <option value="{{ e.id }}" {% if cliente.estado_id==e.id %}selected{% endif %}>{{ e.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Observaciones</label>
+      <textarea class="form-control" id="cli-obs" rows="1">{{ cliente.observaciones or '' }}</textarea>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0">Direcciones</h6>
+    <button class="btn btn-outline-primary btn-sm" id="btn-add-dir">Agregar</button>
+  </div>
+  <div id="dir-list" class="d-flex flex-column gap-2">
+    {% for d in cliente.direcciones %}
+      <div class="card p-2 dir-card" data-id="{{ d.id }}">
+        <div><strong>{{ d.calle }}</strong> {% if d.calle2 %} · {{ d.calle2 }}{% endif %}</div>
+        <div class="small text-muted">{{ d.municipio }}, {{ d.provincia }} · {{ d.ciudad }} · {{ d.cp or '' }} · {{ d.pais or '' }}</div>
+        {% if d.descripcion %}<div class="small">{{ d.descripcion }}</div>{% endif %}
+        <div class="mt-1 d-flex gap-2">
+          <button class="btn btn-light btn-sm btn-edit-dir">Editar</button>
+          <button class="btn btn-light btn-sm btn-del-dir">Eliminar</button>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-light border mb-0">Sin direcciones.</div>
+    {% endfor %}
+  </div>
+
+  <hr>
+
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0">Contactos</h6>
+    <button class="btn btn-outline-primary btn-sm" id="btn-add-ct">Agregar</button>
+  </div>
+  <div id="ct-list" class="d-flex flex-column gap-2">
+    {% for c in cliente.contactos %}
+      <div class="card p-2 ct-card" data-id="{{ c.id }}">
+        <div class="fw-semibold">{{ c.nombre }}</div>
+        <div class="small text-muted">{{ c.telefono or '—' }} · {{ c.rol or '—' }}</div>
+        {% if c.notas %}<div class="small">{{ c.notas }}</div>{% endif %}
+        <div class="mt-1 d-flex gap-2">
+          <button class="btn btn-light btn-sm btn-edit-ct">Editar</button>
+          <button class="btn btn-light btn-sm btn-del-ct">Eliminar</button>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-light border mb-0">Sin contactos.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal-footer">
+  <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+  <button class="btn btn-primary" id="btn-save-cli">Guardar</button>
+</div>
+
+<script>
+(() => {
+  const cid = {{ cliente.id }};
+  const selEstado = document.getElementById('cli-estado');
+  const txtObs = document.getElementById('cli-obs');
+
+  document.getElementById('btn-save-cli').addEventListener('click', ()=>{
+    fetch('/api/simple_update_cliente/'+cid, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ estado_id: selEstado.value || null, observaciones: txtObs.value || null })
+    }).then(r=>r.json()).then(j=>{
+      if(j.success){ location.reload(); } else alert('No se pudo guardar');
+    });
+  });
+
+  // Direcciones
+  const listDir = document.getElementById('dir-list');
+  document.getElementById('btn-add-dir').addEventListener('click', ()=>{
+    const payload = { calle:'', ciudad:'', provincia:'', municipio:'', descripcion:'' };
+    // Abre modal similar al de Negocio (puedes reutilizar tu componente); por simplicidad:
+    const v = prompt('Calle (requerido):'); if(!v) return;
+    payload.calle=v; payload.ciudad=prompt('Ciudad (req):')||''; if(!payload.ciudad) return;
+    payload.provincia=prompt('Provincia (req):')||''; if(!payload.provincia) return;
+    payload.municipio=prompt('Municipio (req):')||''; if(!payload.municipio) return;
+    fetch(`/clientes/${cid}/direccion`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+      .then(r=>r.json()).then(j=>{ if(j.success) location.reload(); else alert(j.error || 'No se pudo guardar'); });
+  });
+
+  listDir.querySelectorAll('.btn-del-dir').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id = b.closest('.dir-card').getAttribute('data-id');
+      if(!confirm('¿Eliminar dirección?')) return;
+      fetch(`/clientes/direccion/${id}`, {method:'DELETE'}).then(r=>r.json()).then(j=>{ if(j.success) location.reload(); });
+    });
+  });
+
+  // Contactos
+  const listCt = document.getElementById('ct-list');
+  document.getElementById('btn-add-ct').addEventListener('click', ()=>{
+    const nombre = prompt('Nombre del contacto (req):'); if(!nombre) return;
+    const telefono = prompt('Teléfono:')||'';
+    const rol = prompt('Rol (dueño/dependiente/otro):')||'';
+    const notas = prompt('Notas:')||'';
+    fetch(`/clientes/${cid}/contacto`, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nombre, telefono, rol, notas })})
+      .then(r=>r.json()).then(j=>{ if(j.success) location.reload(); });
+  });
+
+  listCt.querySelectorAll('.btn-del-ct').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id = b.closest('.ct-card').getAttribute('data-id');
+      if(!confirm('¿Eliminar contacto?')) return;
+      fetch(`/clientes/contacto/${id}`, {method:'DELETE'}).then(r=>r.json()).then(j=>{ if(j.success) location.reload(); });
+    });
+  });
+})();
+</script>

@@ -4,11 +4,19 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-house-door"></i> Negocios registrados</h2>
-  {% if session.get('user_role') == 'admin' %}
-  <a href="{{ url_for('generar_todas_facturas') }}" class="btn btn-dark">
-    <i class="bi bi-archive"></i> Generar todas las facturas
+
+  <div class="d-flex gap-2">
+    {% if session.get('user_role') == 'admin' %}
+      <a href="{{ url_for('generar_todas_facturas') }}" class="btn btn-dark">
+        <i class="bi bi-archive"></i> Generar todas las facturas
+      </a>
+    {% endif %}
+
+    <!-- NUEVO: Botón que abre el modal -->
+    <a href="{{ url_for('agregar_negocio') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nuevo negocio
   </a>
-  {% endif %}
+  </div>
 </div>
 
 <!-- Buscador -->
@@ -44,17 +52,257 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const buscador = document.getElementById("buscador");
+  // ===== Buscador en vivo =====
+  const buscador   = document.getElementById("buscador");
   const contenedor = document.getElementById("resultados-negocios");
 
-  buscador.addEventListener("input", () => {
-    const query = buscador.value.trim();
-    fetch(`/buscar?q=${encodeURIComponent(query)}`)
-      .then(res => res.text())
-      .then(html => {
-        contenedor.innerHTML = html;
-      });
-  });
+  if (buscador && contenedor) {
+    buscador.addEventListener("input", () => {
+      const query = buscador.value.trim();
+      fetch(`/buscar?q=${encodeURIComponent(query)}`)
+        .then(res => res.text())
+        .then(html => { contenedor.innerHTML = html; });
+    });
+  }
+
+  // ===== Nuevo negocio (modal) =====
+  const modalEl  = document.getElementById('modalNuevoNegocio');
+  const form     = document.getElementById('formNuevoNegocio');
+  const spinner  = document.getElementById('spinnerNuevoNegocio');
+
+  if (modalEl && form) {
+    // Reset al abrir
+    modalEl.addEventListener('show.bs.modal', () => form.reset());
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+
+      const nombre      = (form.nombre?.value || '').trim();
+      const propietario = (form.propietario?.value || '').trim();
+
+      if (!nombre)      { form.nombre?.focus(); return; }
+      if (!propietario) { form.propietario?.focus(); return; }
+
+      spinner?.classList.remove('d-none');
+
+      // Construimos la "direccion" simple para /api/agregar_negocio
+      const dirSimple = [
+        form.calle?.value,
+        form.calle2?.value,
+        form.ciudad?.value,
+        form.municipio?.value,
+        form.provincia?.value,
+        form.pais?.value,
+        form.cp?.value
+      ].map(v => (v || '').trim()).filter(Boolean).join(', ');
+
+      const payloadCrear = {
+        nombre: nombre,
+        propietario: propietario,
+        admin: (form.admin?.value || '').trim(),
+        tel_propietario: (form.tel_propietario?.value || '').trim(),
+        tel_admin: (form.tel_admin?.value || '').trim(),
+        direccion: dirSimple,
+        licencia: (form.licencia?.value || '').trim(),
+        negocios_hijos: []  // lo exige la ruta, lo dejamos vacío
+      };
+
+      try {
+        // 1) Crear negocio base (JSON)
+        const resCrear  = await fetch('{{ url_for("api_agregar_negocio") }}', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payloadCrear)
+        });
+        const dataCrear = await resCrear.json().catch(() => ({}));
+        if (!resCrear.ok || !dataCrear.id) {
+          throw new Error(dataCrear.error || `Error creando negocio (HTTP ${resCrear.status})`);
+        }
+
+        const nuevoId = dataCrear.id;
+
+        // 2) Si se completó dirección detallada, guardarla en tabla Direccion
+        const tieneDireccionDetallada =
+          (form.calle?.value || form.ciudad?.value || form.municipio?.value ||
+           form.provincia?.value || form.cp?.value || form.pais?.value || form.descripcion?.value);
+
+        if (tieneDireccionDetallada) {
+          const payloadDir = {
+            calle: (form.calle?.value || '').trim(),
+            calle2: (form.calle2?.value || '').trim(),
+            ciudad: (form.ciudad?.value || '').trim(),
+            cp: (form.cp?.value || '').trim(),
+            pais: (form.pais?.value || '').trim(),
+            provincia: (form.provincia?.value || '').trim(),
+            municipio: (form.municipio?.value || '').trim(),
+            descripcion: (form.descripcion?.value || '').trim(),
+            principal: true
+          };
+
+          const resDir  = await fetch(`/negocio/${nuevoId}/direccion`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payloadDir)
+          });
+          const dataDir = await resDir.json().catch(() => ({}));
+          if (!resDir.ok || dataDir.success !== true) {
+            // No es crítico para el alta, solo avisamos en consola
+            console.warn('Dirección no guardada:', dataDir);
+          }
+        }
+
+        // Cerrar modal y recargar listado
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        modalInstance && modalInstance.hide();
+        window.location.reload();
+
+      } catch (err) {
+        console.error(err);
+        alert('No se pudo guardar el negocio. ' + (err.message || ''));
+      } finally {
+        spinner?.classList.add('d-none');
+      }
+    });
+  }
 });
+
+// ====== Utilidades para detalle por AJAX (mantengo tu lógica) ======
+const baseModalUrl = "/detalle_negocio_modal/";
+
+function runInlineScripts(container) {
+  const scripts = container.querySelectorAll('script');
+  scripts.forEach(old => {
+    const s = document.createElement('script');
+    if (old.src) { s.src = old.src; s.async = false; }
+    else { s.textContent = old.textContent; }
+    document.body.appendChild(s);
+    old.remove();
+  });
+}
+
+function verDetalleNegocio(id) {
+  const modalEl = document.getElementById('detalleNegocioModal');
+  const modal   = new bootstrap.Modal(modalEl);
+  modal.show();
+
+  const cont = document.getElementById('detalleNegocioContenido');
+  cont.innerHTML = `<div class="text-center py-4">
+    <div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div>
+  </div>`;
+
+  fetch(baseModalUrl + id)
+    .then(r => r.text())
+    .then(html => {
+      cont.innerHTML = html;
+      runInlineScripts(cont);
+      const firstTab = modalEl.querySelector('[data-bs-target="#pane-generales"]');
+      if (firstTab) new bootstrap.Tab(firstTab).show();
+    })
+    .catch(() => {
+      cont.innerHTML = `<div class="alert alert-danger">No se pudo cargar la información del negocio.</div>`;
+    });
+}
 </script>
 {% endblock %}
+
+{% block modals %}
+<!-- Modal Detalle Negocio (se rellena por fetch) -->
+<div class="modal fade" id="detalleNegocioModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body" id="detalleNegocioContenido">
+        <div class="text-center py-4">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Buscador
+  const buscador   = document.getElementById("buscador");
+  const contenedor = document.getElementById("resultados-negocios");
+  if (buscador && contenedor) {
+    buscador.addEventListener("input", () => {
+      const query = buscador.value.trim();
+      fetch(`/buscar?q=${encodeURIComponent(query)}`)
+        .then(res => res.text())
+        .then(html => { contenedor.innerHTML = html; });
+    });
+  }
+
+  // Nuevo negocio (modal)
+  const form = document.getElementById('formNuevoNegocio');
+  if (!form) return;
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+
+    const fd = new FormData(form);
+    // añadir todos los comerciales marcados
+    form.querySelectorAll('input[name="comercial[]"]:checked').forEach(chk => {
+      fd.append('comercial[]', chk.value);
+    });
+
+    try {
+      const res = await fetch('{{ url_for("agregar_negocio") }}', {
+        method: 'POST',
+        body: fd
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const modalEl = document.getElementById('modalNuevoNegocio');
+      if (window.bootstrap && modalEl) {
+        (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)).hide();
+      }
+      location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo guardar el negocio.');
+    }
+  });
+});
+
+// Utilidades del modal de detalle
+const baseModalUrl = "/detalle_negocio_modal/";
+function runInlineScripts(container) {
+  const scripts = container.querySelectorAll('script');
+  scripts.forEach(old => {
+    const s = document.createElement('script');
+    if (old.src) { s.src = old.src; s.async = false; }
+    else { s.textContent = old.textContent; }
+    document.body.appendChild(s);
+    old.remove();
+  });
+}
+function verDetalleNegocio(id) {
+  const modalEl = document.getElementById('detalleNegocioModal');
+  const modal   = new bootstrap.Modal(modalEl);
+  modal.show();
+
+  const cont = document.getElementById('detalleNegocioContenido');
+  cont.innerHTML = `<div class="text-center py-4">
+    <div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div>
+  </div>`;
+
+  fetch(baseModalUrl + id)
+    .then(r => r.text())
+    .then(html => {
+      cont.innerHTML = html;
+      runInlineScripts(cont);
+      const firstTab = modalEl.querySelector('[data-bs-target="#pane-generales"]');
+      if (firstTab) new bootstrap.Tab(firstTab).show();
+    })
+    .catch(() => {
+      cont.innerHTML = `<div class="alert alert-danger">No se pudo cargar la información del negocio.</div>`;
+    });
+}
+</script>
+
+</script>

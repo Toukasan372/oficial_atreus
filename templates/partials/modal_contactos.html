@@ -1,0 +1,50 @@
+<!-- Modal Agregar/Editar Contacto -->
+<div class="modal fade" id="contactoModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="contactoModalTitle">Agregar contacto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-contacto">
+          <input type="hidden" id="ct-id" value="">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" class="form-control" id="ct-nombre" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Cargo</label>
+              <input type="text" class="form-control" id="ct-cargo">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="text" class="form-control" id="ct-telefono">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" id="ct-email">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notas</label>
+              <textarea class="form-control" id="ct-notas" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="ct-principal">
+                <label class="form-check-label" for="ct-principal">
+                  Marcar como contacto principal
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-contacto">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,6 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Panel de Administración{% endblock %}
 {% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="m-0">
+    <i class="bi bi-speedometer2 me-2"></i> Panel de administración
+  </h2>
+
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin_catalogos') }}" class="btn btn-outline-dark">
+      <i class="bi bi-card-checklist me-1"></i> Catálogos (Proveedores & Módulos)
+    </a>
+  </div>
+</div>
+
 <div class="container mt-4">
   <h2 class="mb-4"><i class="bi bi-person-gear"></i> Panel de Administración</h2>
 

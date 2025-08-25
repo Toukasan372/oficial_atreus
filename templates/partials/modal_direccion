@@ -1,0 +1,52 @@
+<div class="modal fade" id="modalDireccion" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar dirección</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formDireccion">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label>Calle principal *</label>
+              <input type="text" name="calle" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label>Calle secundaria</label>
+              <input type="text" name="calle2" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label>Ciudad *</label>
+              <input type="text" name="ciudad" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label>Código postal</label>
+              <input type="text" name="cp" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label>Provincia *</label>
+              <input type="text" name="provincia" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label>Municipio *</label>
+              <input type="text" name="municipio" class="form-control" required>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label>Descripción</label>
+            <textarea name="descripcion" class="form-control"></textarea>
+          </div>
+          <div class="mt-3 form-check">
+            <input type="checkbox" name="principal" class="form-check-input">
+            <label class="form-check-label">Marcar como dirección principal</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="guardarDireccion" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

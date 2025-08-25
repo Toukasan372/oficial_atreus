@@ -1,0 +1,243 @@
+<!-- templates/partials/detalle_negocio_modal.html -->
+<div class="container-fluid">
+  <div class="row g-3">
+    <div class="col-md-4 text-center">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="img-fluid rounded mb-3" style="max-height:160px;opacity:.9;">
+      <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
+        ID #{{ negocio.id }}
+      </div>
+    </div>
+    <div class="col-md-8">
+      <h5 class="mb-2" style="color:#1e3a8a;">{{ negocio.nombre }}</h5>
+      <div class="small text-muted">Tipo: {{ negocio.tipo|capitalize }}</div>
+      <div class="mt-2">
+        <span class="badge bg-secondary me-2">Comercial: {{ negocio.comercial or '—' }}</span>
+        {% if negocio.licencia %}<span class="badge bg-success">Licencia: {{ negocio.licencia }} {{ negocio.moneda_licencia or 'USD' }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-3">
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="tabsNegocio" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-generales" data-bs-toggle="tab" data-bs-target="#pane-generales" type="button" role="tab">Generales</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-contacto" data-bs-toggle="tab" data-bs-target="#pane-contacto" type="button" role="tab">Contactos</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-servicios" data-bs-toggle="tab" data-bs-target="#pane-servicios" type="button" role="tab">Contratación</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-seguimiento" data-bs-toggle="tab" data-bs-target="#pane-seguimiento" type="button" role="tab">Seguimiento</button>
+    </li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <!-- Generales -->
+    <div class="tab-pane fade show active" id="pane-generales" role="tabpanel" aria-labelledby="tab-generales">
+      <ul class="list-group">
+        <li class="list-group-item"><strong>Propietario:</strong> {{ negocio.propietario }}</li>
+        <li class="list-group-item"><strong>Administrador:</strong> {{ negocio.admin or '—' }}</li>
+        <li class="list-group-item"><strong>Dirección:</strong> {{ negocio.direccion or '—' }}</li>
+        <li class="list-group-item"><strong>Tipo:</strong> {{ negocio.tipo|capitalize }}</li>
+        <li class="list-group-item"><strong>Conectividad:</strong> {{ (negocio.conectividad | int if negocio.conectividad is not none and negocio.conectividad == negocio.conectividad|int else negocio.conectividad) or 0 }} CUP</li>
+        <li class="list-group-item"><strong>Observación:</strong> {{ negocio.observacion or '—' }}</li>
+      </ul>
+      {% if negocio.tipo == 'hijo' and negocio.padre %}
+      <div class="alert alert-info mt-3">
+        Pertenece a la casa matriz: <strong>{{ negocio.padre.nombre }}</strong>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Contactos -->
+    <div class="tab-pane fade" id="pane-contacto" role="tabpanel" aria-labelledby="tab-contacto">
+      <ul class="list-group">
+        <li class="list-group-item"><strong>Tel. Propietario:</strong> {{ negocio.tel_propietario or '—' }}</li>
+        <li class="list-group-item"><strong>Tel. Administrador:</strong> {{ negocio.tel_admin or '—' }}</li>
+        {% if negocio.telefonos_extras %}
+          {% set telefonos = negocio.telefonos_extras | from_json %}
+          {% if telefonos %}
+          <li class="list-group-item">
+            <strong>Otros teléfonos:</strong>
+            <ul class="mb-0 ps-3">
+              {% for item in telefonos %}
+              <li><strong>{{ item.nombre or 'Contacto' }}</strong>: {{ item.telefono or '—' }}</li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% endif %}
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- Contratación -->
+    <div class="tab-pane fade" id="pane-servicios" role="tabpanel" aria-labelledby="tab-servicios">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title">Licencia</h6>
+              <p class="mb-1"><strong>Monto:</strong> {{ negocio.licencia or '—' }} {{ negocio.moneda_licencia or 'USD' }}</p>
+              <p class="mb-0"><strong>Comercial:</strong> {{ negocio.comercial or '—' }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title">Módulos</h6>
+              {% set modulos = negocio.modulos or {} %}
+              <ul class="mb-0">
+                <li>Punto de venta: <strong>{{ 'Activo' if modulos.get('Punto de venta') else 'Inactivo' }}</strong></li>
+                <li>Tienda online: <strong>{{ 'Activo' if modulos.get('Tienda online') else 'Inactivo' }}</strong></li>
+                <li>Notificaciones: <strong>{{ 'Activo' if modulos.get('Notificaciones') else 'Inactivo' }}</strong></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seguimiento -->
+    <div class="tab-pane fade" id="pane-seguimiento" role="tabpanel" aria-labelledby="tab-seguimiento">
+      <p class="text-muted">Aquí podrás listar acciones o recordatorios asociados a este negocio.</p>
+      <ul>
+        <li class="text-muted">Sin acciones registradas.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<!-- === SEGUIMIENTO === -->
+<div class="mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <h6 class="mb-2">Seguimiento</h6>
+    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalSeguimiento">
+      <i class="bi bi-clipboard-plus"></i> Añadir seguimiento
+    </button>
+  </div>
+
+  <div id="seguimientos-lista">
+    <div class="text-muted small">Cargando seguimientos...</div>
+  </div>
+</div>
+
+<!-- Modal Seguimiento -->
+<div class="modal fade" id="modalSeguimiento" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="formSeguimiento">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo seguimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Observación *</label>
+          <textarea class="form-control" name="observacion" rows="4" required></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            <option value="activo" selected>Activo</option>
+            <option value="riesgo">Riesgo</option>
+          </select>
+          <div class="form-text">Si eliges “Riesgo”, se enviará un correo de alerta.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">
+          Guardar
+          <span class="spinner-border spinner-border-sm ms-2 d-none" id="spinSeg" role="status"></span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(() => {
+  const NEGOCIO_ID = {{ negocio.id }};
+  const cont = document.getElementById('seguimientos-lista');
+  const form = document.getElementById('formSeguimiento');
+  const spin = document.getElementById('spinSeg');
+
+  async function cargarSeguimientos() {
+    if (!cont) return;
+    cont.innerHTML = '<div class="text-muted small">Cargando seguimientos...</div>';
+    try {
+      const r = await fetch(`/negocio/${NEGOCIO_ID}/seguimientos`);
+      const data = await r.json();
+      if (!data.success) throw new Error('error');
+      if (!data.items.length) {
+        cont.innerHTML = '<div class="text-muted small">Sin seguimientos aún.</div>';
+        return;
+      }
+      const html = data.items.map(s => `
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between">
+            <div>
+              <span class="badge ${s.estado === 'riesgo' ? 'bg-danger' : 'bg-success'}">${s.estado}</span>
+            </div>
+            <small class="text-muted">${s.creado_en}</small>
+          </div>
+          <div class="mt-2">${s.observacion.replaceAll('<', '&lt;')}</div>
+          <div class="mt-1 text-muted small">por ${s.creado_por_email || '—'}</div>
+        </div>
+      `).join('');
+      cont.innerHTML = html;
+    } catch(e) {
+      cont.innerHTML = '<div class="text-danger small">No se pudieron cargar los seguimientos.</div>';
+    }
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        observacion: fd.get('observacion') || '',
+        estado: fd.get('estado') || 'activo'
+      };
+      spin?.classList.remove('d-none');
+      try {
+        const r = await fetch(`/negocio/${NEGOCIO_ID}/seguimientos`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (!data.success) throw new Error(data.error || 'Error');
+        // cerrar modal y recargar lista
+        const modalEl = document.getElementById('modalSeguimiento');
+        if (window.bootstrap && modalEl) {
+          (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)).hide();
+        }
+        form.reset();
+        cargarSeguimientos();
+      } catch(e) {
+        alert('No se pudo guardar el seguimiento.');
+      } finally {
+        spin?.classList.add('d-none');
+      }
+    });
+  }
+
+  // cargar al abrir el modal grande de detalle (tu código ya hace show)
+  cargarSeguimientos();
+})();
+</script>
+
+<style>
+/* Animación suave para el cambio de pestañas */
+.tab-pane {
+  transition: opacity .2s ease-in-out, transform .2s ease-in-out;
+}
+.tab-pane:not(.show) {
+  opacity: 0;
+  transform: translateY(4px);
+}
+</style>

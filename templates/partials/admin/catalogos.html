@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-3">
+  <h4>Catálogos: Proveedores y Módulos</h4>
+  <div class="row g-4 mt-2">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Proveedores de internet</strong>
+          <form id="f-prov" class="d-flex gap-2">
+            <input class="form-control form-control-sm" name="nombre" placeholder="Nombre">
+            <input class="form-control form-control-sm" name="descripcion" placeholder="Descripción">
+            <button class="btn btn-sm btn-primary">Agregar</button>
+          </form>
+        </div>
+        <ul class="list-group list-group-flush" id="list-prov">
+          {% for p in proveedores %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ p.nombre }} <small class="text-muted">{{ p.descripcion }}</small></span>
+              <button class="btn btn-sm btn-outline-danger btn-del-prov" data-id="{{ p.id }}">Eliminar</button>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Módulos</strong>
+          <form id="f-mod" class="d-flex gap-2">
+            <input class="form-control form-control-sm" name="nombre" placeholder="Nombre">
+            <input class="form-control form-control-sm" name="descripcion" placeholder="Descripción">
+            <button class="btn btn-sm btn-primary">Agregar</button>
+          </form>
+        </div>
+        <ul class="list-group list-group-flush" id="list-mod">
+          {% for m in modulos %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ m.nombre }} <small class="text-muted">{{ m.descripcion }}</small></span>
+              <button class="btn btn-sm btn-outline-danger btn-del-mod" data-id="{{ m.id }}">Eliminar</button>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fProv = document.getElementById('f-prov');
+  const fMod = document.getElementById('f-mod');
+
+  fProv?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(fProv);
+    const r = await fetch('/admin/proveedor', {method:'POST', body:fd});
+    const j = await r.json();
+    if(!j.success) return alert(j.error||'Error');
+    location.reload();
+  });
+
+  fMod?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(fMod);
+    const r = await fetch('/admin/modulo', {method:'POST', body:fd});
+    const j = await r.json();
+    if(!j.success) return alert(j.error||'Error');
+    location.reload();
+  });
+
+  document.querySelectorAll('.btn-del-prov').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('¿Eliminar proveedor?')) return;
+      const r = await fetch('/admin/proveedor?id='+b.dataset.id, {method:'DELETE'});
+      const j = await r.json();
+      if(!j.success) return alert(j.error||'Error');
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-del-mod').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('¿Eliminar módulo?')) return;
+      const r = await fetch('/admin/modulo?id='+b.dataset.id, {method:'DELETE'});
+      const j = await r.json();
+      if(!j.success) return alert(j.error||'Error');
+      location.reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

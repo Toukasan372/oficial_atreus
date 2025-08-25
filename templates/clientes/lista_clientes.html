@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h4 class="mb-0">Clientes</h4>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevo">➕ Nuevo</button>
+</div>
+
+<div id="grid" class="row g-3">
+  {% for c in clientes %}
+  <div class="col-12 col-md-6 col-xl-4" data-id="{{ c.id }}">
+
+            
+
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <img src="{{ url_for('static', filename='logo1.png') }}" 
+                 alt="logo" 
+                 width="30" 
+                 height="30" 
+                 style="margin-right:8px;">
+            <h5 class="card-title mb-1">{{ c.nombre_negocio }}</h5>
+            <div class="text-muted small">Creado: {{ c.creado_en }}</div>
+          </div>
+          <span class="badge {% if c.estado=='Cerrado' %}bg-success{% elif c.estado=='Posible Cliente' %}bg-info{% else %}bg-secondary{% endif %}">
+            {{ c.estado or '—' }}
+          </span>
+        </div>
+
+        {% set d = (c.direcciones|selectattr('principal')|first) %}
+        {% if d %}
+        <div class="mt-3 small">
+          <div class="fw-semibold mb-1">Dirección</div>
+          <div class="text-muted">{{ d.calle or '—' }}, {{ d.municipio or '—' }}, {{ d.provincia or '—' }}</div>
+        </div>
+        {% endif %}
+
+        <small class="text-muted">Creado por: {{ c.creado_por_email or '—' }}</small>
+
+
+        {% if c.observaciones %}
+        <div class="mt-3">
+          <div class="fw-semibold small mb-1">Observaciones</div>
+          <div class="small text-muted">{{ c.observaciones }}</div>
+        </div>
+        {% endif %}
+
+        <div class="mt-3 d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm btn-ver" data-id="{{ c.id }}">Ver</button>
+          <button class="btn btn-danger btn-sm btn-eliminar" data-id="{{ c.id }}">Eliminar</button>
+          <a href="{{ url_for('clientes_generar_informe', id=c.id) }}" class="btn btn-info btn-sm">
+  Generar
+</a>
+
+
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if total_paginas and total_paginas > 1 %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm">
+    {% for p in range(1, total_paginas+1) %}
+      <li class="page-item {% if p == pagina %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('clientes_lista', pagina=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+<!-- Modal Nuevo -->
+<div class="modal fade" id="modalNuevo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="formNuevo">
+        <div class="modal-header">
+          <h5 class="modal-title">Nuevo cliente</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Nombre del cliente *</label>
+              <input type="text" class="form-control" name="nombre_negocio" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select class="form-select" name="estado">
+                <option value="">— Seleccionar —</option>
+                {% for e in estados %}
+                  <option value="{{ e.id }}">{{ e.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12"><hr class="my-2"><div class="fw-semibold">Dirección</div></div>
+            <div class="col-md-8">
+              <label class="form-label">Calle</label>
+              <input type="text" class="form-control" name="calle">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Municipio</label>
+              <input type="text" class="form-control" name="municipio">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Provincia</label>
+              <input type="text" class="form-control" name="provincia">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <textarea class="form-control" rows="3" name="observaciones"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            Guardar <span id="spNuevo" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver/Editar -->
+<div class="modal fade" id="modalVer" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="formVer">
+        <div class="modal-header">
+          <h5 class="modal-title">Cliente</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="id">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Nombre del cliente *</label>
+              <input type="text" class="form-control" name="nombre_negocio" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select class="form-select" name="estado">
+                <option value="">— Seleccionar —</option>
+                <option value="Posible Cliente">Posible Cliente</option>
+                <option value="Cerrado">Cerrado</option>
+              </select>
+            </div>
+
+            <div class="col-12"><hr class="my-2"><div class="fw-semibold">Dirección</div></div>
+            <div class="col-md-8">
+              <label class="form-label">Calle</label>
+              <input type="text" class="form-control" name="calle">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Municipio</label>
+              <input type="text" class="form-control" name="municipio">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Provincia</label>
+              <input type="text" class="form-control" name="provincia">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <textarea class="form-control" rows="3" name="observaciones"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+          <button type="submit" class="btn btn-primary">
+            Guardar cambios <span id="spVer" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Asegura el bundle de Bootstrap 5 (si tu base.html no lo incluye ya) -->
+<script>
+(function () {
+  const $ = (s,el=document)=>el.querySelector(s);
+
+  // ----- Nuevo -----
+  const fNuevo = $("#formNuevo");
+  const spNuevo = $("#spNuevo");
+  const modalNuevoEl = $("#modalNuevo");
+  if (fNuevo && modalNuevoEl && window.bootstrap) {
+    const mNuevo = bootstrap.Modal.getOrCreateInstance(modalNuevoEl);
+    modalNuevoEl.addEventListener("show.bs.modal", ()=> fNuevo.reset());
+
+    fNuevo.addEventListener("submit", async (ev)=>{
+      ev.preventDefault();
+      const nombre = (fNuevo.nombre_negocio.value || "").trim();
+      if (!nombre) { fNuevo.nombre_negocio.focus(); return; }
+      spNuevo.classList.remove("d-none");
+      const payload = {
+        nombre_negocio: nombre,
+        estado: fNuevo.estado.value || null,
+        observaciones: (fNuevo.observaciones.value || "").trim() || null,
+        direccion: {
+          calle: (fNuevo.calle.value || "").trim() || null,
+          municipio: (fNuevo.municipio.value || "").trim() || null,
+          provincia: (fNuevo.provincia.value || "").trim() || null
+        }
+      };
+      try {
+        const res = await fetch("/api/clientes", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || "Error");
+        mNuevo.hide();
+        location.reload();
+      } catch(e) {
+        alert("No se pudo guardar el cliente.\n" + e.message);
+      } finally { spNuevo.classList.add("d-none"); }
+    });
+  }
+
+  // ----- Ver / Editar -----
+  const grid = $("#grid");
+  const fVer = $("#formVer");
+  const spVer = $("#spVer");
+  const modalVerEl = $("#modalVer");
+  if (grid && fVer && modalVerEl && window.bootstrap) {
+    const mVer = bootstrap.Modal.getOrCreateInstance(modalVerEl);
+
+    grid.addEventListener("click", async (ev)=>{
+      const btn = ev.target.closest(".btn-ver");
+      const del = ev.target.closest(".btn-eliminar");
+      if (btn) {
+        const id = btn.dataset.id;
+        try {
+          const res = await fetch(`/api/clientes/${id}`);
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error();
+          // Cargar datos
+          fVer.id.value = data.item.id;
+          fVer.nombre_negocio.value = data.item.nombre_negocio || "";
+          fVer.estado.value = data.item.estado || "";
+          const dir = data.item.direccion || {};
+          fVer.calle.value = dir.calle || "";
+          fVer.municipio.value = dir.municipio || "";
+          fVer.provincia.value = dir.provincia || "";
+          fVer.observaciones.value = data.item.observaciones || "";
+          mVer.show();
+        } catch(e) {
+          alert("No se pudo cargar el cliente.");
+        }
+      }
+      if (del) {
+        const id = del.dataset.id;
+        if (!confirm("¿Eliminar este cliente?")) return;
+        try {
+          const res = await fetch(`/api/clientes/${id}`, { method:"DELETE" });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error();
+          location.reload();
+        } catch(e) {
+          alert("No se pudo eliminar.");
+        }
+      }
+    });
+
+    fVer.addEventListener("submit", async (ev)=>{
+      ev.preventDefault();
+      const id = fVer.id.value;
+      const nombre = (fVer.nombre_negocio.value || "").trim();
+      if (!nombre) { fVer.nombre_negocio.focus(); return; }
+      spVer.classList.remove("d-none");
+      const payload = {
+        nombre_negocio: nombre,
+        estado: fVer.estado.value || null,
+        observaciones: (fVer.observaciones.value || "").trim() || null,
+        direccion: {
+          calle: (fVer.calle.value || "").trim() || null,
+          municipio: (fVer.municipio.value || "").trim() || null,
+          provincia: (fVer.provincia.value || "").trim() || null
+        }
+      };
+      try {
+        const res = await fetch(`/api/clientes/${id}`, {
+          method: "PUT",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error();
+        bootstrap.Modal.getInstance(modalVerEl).hide();
+        location.reload();
+      } catch(e) {
+        alert("No se pudieron guardar los cambios.");
+      } finally { spVer.classList.add("d-none"); }
+    });
+  }
+})();
+</script>
+{% endblock %}

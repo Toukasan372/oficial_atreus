@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Estados de cliente</h4>
+
+<form class="row g-2 mb-3" id="frm-new">
+  <div class="col-auto">
+    <input class="form-control" name="nombre" placeholder="Nuevo estado">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-primary" type="submit">Crear</button>
+  </div>
+</form>
+
+<ul class="list-group">
+  {% for e in estados %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ e.nombre }}
+      <button class="btn btn-sm btn-outline-danger btn-del" data-id="{{ e.id }}">Eliminar</button>
+    </li>
+  {% else %}
+    <li class="list-group-item">Sin estados</li>
+  {% endfor %}
+</ul>
+
+<script>
+(() => {
+  document.getElementById('frm-new').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    fetch('{{ url_for("clientes.admin_estados_post") }}', {method:'POST', body: fd})
+      .then(r=>r.json()).then(j=>{ if(j.success) location.reload(); else alert(j.error || 'Error'); });
+  });
+  document.querySelectorAll('.btn-del').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(!confirm('¿Eliminar estado?')) return;
+      fetch(`{{ url_for("clientes.admin_estados") }}/${b.dataset.id}`, {method:'DELETE'})
+        .then(r=>r.json()).then(j=>{ if(j.success) location.reload(); else alert(j.error || 'Error'); });
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+[2025-08-16 02:48:26] orlando@tecopos.com editó a orlando@tecopos.com: Nombre: None → Carlos; Contraseña: actualizada
+[2025-08-16 10:29:07] orlando@tecopos.com editó a admin@tecopos.com: Rol: asistente → admin
+[2025-08-16 10:34:23] orlando@tecopos.com editó a carlos@tecopos.com: Rol: asistente → comercial
+[2025-08-16 10:36:18] admin@tecopos.com editó a orlando@tecopos.com: Contraseña: actualizada; Rol: admin → comercial
+[2025-08-16 18:07:14] admin@tecopos.com editó a orlando@tecopos.com: Nombre: Carlos → Orlando; Contraseña: actualizada
+[2025-08-16 18:07:31] admin@tecopos.com editó a asistente@gmail.com: Nombre: None → asistente; Correo: carlos@gmail.com → asistente@gmail.com
+[2025-08-16 18:07:40] admin@tecopos.com editó a carlos@tecopos.com: Nombre: None → Carlos

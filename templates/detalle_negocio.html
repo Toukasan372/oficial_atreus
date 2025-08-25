@@ -182,6 +182,12 @@
     </div>
   </div>
 </div>
+<!-- Botón Módulos -->
+<button type="button" class="btn btn-outline-success btn-sm ms-2"
+        data-bs-toggle="tooltip" data-bs-placement="top" title="Módulo"
+        onclick="window.location.href='{{ url_for('modulos_negocio', id=negocio.id) }}'">
+  <i class="bi bi-grid-1x2-fill"></i> Módulos
+</button>
 
 <!-- Modal Negocios Hijos -->
 <div class="modal fade" id="modalHijos" tabindex="-1">

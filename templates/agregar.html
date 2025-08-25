@@ -7,101 +7,135 @@
   <i class="bi bi-plus-circle me-2"></i> Agregar Negocio
 </h2>
 
-<form method="POST" novalidate>
-  <div class="mb-3">
-    <label class="form-label">Nombre del negocio *</label>
-    <input type="text" class="form-control" name="nombre" required />
-  </div>
+<p class="text-muted mb-1">Completa los datos del nuevo negocio en el modal.</p>
 
-  <div class="mb-3">
-    <label class="form-label">Tipo de negocio *</label>
-    <select class="form-control" name="tipo_negocio" id="tipoNegocio" required>
-      <option value="negocio">Negocio</option>
-      <option value="casa_matriz">Casa Matriz</option>
-      <option value="hijo">Negocio Hijo</option>
-    </select>
-  </div>
+<!-- Botón por si el usuario cierra el modal y lo quiere volver a abrir -->
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoNegocio">
+  <i class="bi bi-plus-lg"></i> Abrir formulario
+</button>
+{% endblock %}
 
-  <div class="mb-3 d-none" id="campoPadre">
-    <label class="form-label">Seleccionar Casa Matriz</label>
-    <select class="form-control" name="padre_id">
-      <option value="">-- Selecciona una casa matriz --</option>
-      {% for matriz in casas_matriz %}
-      <option value="{{ matriz.id }}">{{ matriz.nombre }}</option>
-      {% endfor %}
-    </select>
-  </div>
+{% block modals %}
+<!-- Modal: Nuevo Negocio -->
+<div class="modal fade" id="modalNuevoNegocio" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="formNuevoNegocio" action="{{ url_for('agregar_negocio') }}" method="POST" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title">Nuevo negocio</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
 
-  <div class="mb-3">
-    <label class="form-label">Propietario *</label>
-    <input type="text" class="form-control" name="propietario" required />
-  </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <!-- Nombre / Tipo -->
+            <div class="col-md-6">
+              <label class="form-label">Nombre del negocio *</label>
+              <input type="text" class="form-control" name="nombre" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo de negocio *</label>
+              <select class="form-control" name="tipo_negocio" id="tipoNegocio" required>
+                <option value="negocio">Negocio</option>
+                <option value="casa_matriz">Casa Matriz</option>
+                <option value="hijo">Negocio Hijo</option>
+              </select>
+            </div>
 
-  <div class="mb-3">
-    <label class="form-label">Administrador</label>
-    <input type="text" class="form-control" name="admin" />
-  </div>
+            <!-- Casa Matriz (solo si "hijo") -->
+            <div class="col-12 d-none" id="campoPadre">
+              <label class="form-label">Seleccionar Casa Matriz</label>
+              <select class="form-control" name="padre_id">
+                <option value="">-- Selecciona una casa matriz --</option>
+                {% for matriz in casas_matriz %}
+                  <option value="{{ matriz.id }}">{{ matriz.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
 
-  <div class="mb-3">
-    <label class="form-label">Teléfono del propietario</label>
-    <input type="text" class="form-control" name="tel_propietario" />
-  </div>
+            <!-- Propietario / Admin / Teléfonos -->
+            <div class="col-md-6">
+              <label class="form-label">Propietario *</label>
+              <input type="text" class="form-control" name="propietario" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Administrador</label>
+              <input type="text" class="form-control" name="admin" />
+            </div>
+            <!-- Comerciales -->
+            <div class="col-12">
+              <label class="form-label d-block">Comerciales</label>
+              {% set lista = comerciales or [] %}
+              {% if lista|length %}
+                <div class="row g-2">
+                  {% for u in lista %}
+                    <div class="col-md-6 col-lg-4">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               name="comercial[]" id="com_{{ u.id }}"
+                               value="{{ u.email }}">
+                        <label class="form-check-label" for="com_{{ u.id }}">
+                          {{ u.nombre_completo or u.email }}
+                        </label>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-muted small">
+                  No hay usuarios con rol <strong>comercial</strong> para asignar.
+                </div>
+              {% endif %}
+            </div>
 
-  <div class="mb-3">
-    <label class="form-label">Teléfono del administrador</label>
-    <input type="text" class="form-control" name="tel_admin" />
-  </div>
+            <!-- Licencia / Moneda / Conectividad -->
+            <div class="col-md-4">
+              <label class="form-label">Licencia *</label>
+              <input type="text" class="form-control" name="licencia" required pattern="\\d*" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Moneda de Licencia</label>
+              <select class="form-control" name="moneda_licencia">
+                <option value="USD" selected>USD</option>
+                <option value="CUP">CUP</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Conectividad (CUP)</label>
+              <input type="number" step="0.01" min="0" class="form-control" name="conectividad" />
+            </div>
+          </div>
+        </div>
 
-  <div class="mb-3">
-    <label class="form-label">Dirección</label>
-    <textarea class="form-control" name="direccion"></textarea>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Agregar Negocio</button>
+        </div>
+      </form>
+    </div>
   </div>
-
-  <div class="mb-3">
-    <label class="form-label">Comercial</label>
-    <input type="text" class="form-control" name="comercial" />
-  </div>
-
-  <div class="mb-3">
-    <label class="form-label">Licencia *</label>
-    <input type="text" class="form-control" name="licencia" required pattern="\\d*" />
-  </div>
-
-  <div class="mb-3">
-    <label class="form-label">Moneda de Licencia</label>
-    <select class="form-control" name="moneda_licencia">
-      <option value="USD" selected>USD</option>
-      <option value="CUP">CUP</option>
-    </select>
-  </div>
-
-  <div class="mb-3">
-    <label class="form-label">Conectividad (CUP)</label>
-    <input type="number" step="0.01" min="0" class="form-control" name="conectividad" />
-  </div>
-
-  <button type="submit" class="btn btn-primary">Agregar Negocio</button>
-</form>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const tipoSelect = document.getElementById('tipoNegocio');
-    const campoPadre = document.getElementById('campoPadre');
+document.addEventListener("DOMContentLoaded", () => {
+  // Abrir modal automáticamente al cargar la página
+  const modalEl = document.getElementById('modalNuevoNegocio');
+  if (window.bootstrap && modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
 
-    tipoSelect.addEventListener('change', () => {
-      if (tipoSelect.value === 'hijo') {
-        campoPadre.classList.remove('d-none');
-      } else {
-        campoPadre.classList.add('d-none');
-      }
-    });
-
-    // Activar al cargar si ya había selección
-    if (tipoSelect.value === 'hijo') {
-      campoPadre.classList.remove('d-none');
-    }
-  });
+  // Mostrar/ocultar "Casa Matriz" si el tipo es "hijo"
+  const tipoSelect = document.getElementById('tipoNegocio');
+  const campoPadre = document.getElementById('campoPadre');
+  const togglePadre = () => {
+    if (tipoSelect.value === 'hijo') campoPadre.classList.remove('d-none');
+    else campoPadre.classList.add('d-none');
+  };
+  tipoSelect.addEventListener('change', togglePadre);
+  togglePadre(); // al cargar
+});
 </script>
 {% endblock %}

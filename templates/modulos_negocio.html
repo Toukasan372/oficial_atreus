@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Módulos - {{ negocio.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="d-flex align-items-center mb-4">
+    <i class="bi bi-grid-1x2-fill me-2"></i> Módulos de {{ negocio.nombre }}
+  </h2>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('guardar_modulos', id=negocio.id) }}">
+        <div class="d-flex flex-column gap-3">
+
+          {% set modulos = negocio.modulos or {} %}
+          {% for modulo, activo in {'Punto de venta': modulos.get('Punto de venta', False),
+                                     'Tienda online': modulos.get('Tienda online', False),
+                                     'Notificaciones': modulos.get('Notificaciones', False)}.items() %}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="modulo_{{ loop.index }}" name="modulos" value="{{ modulo }}" {% if activo %}checked{% endif %}>
+            <label class="form-check-label" for="modulo_{{ loop.index }}">{{ modulo }}</label>
+          </div>
+          {% endfor %}
+
+        </div>
+        <button type="submit" class="btn btn-primary mt-4">
+          <i class="bi bi-save me-2"></i> Guardar cambios
+        </button>
+        <a href="{{ url_for('detalle_negocio', id=negocio.id) }}" class="btn btn-secondary mt-4 ms-2">
+          <i class="bi bi-arrow-left-circle me-2"></i> Volver
+        </a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Inicializa tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+  });
+});
+</script>
+{% endblock %}

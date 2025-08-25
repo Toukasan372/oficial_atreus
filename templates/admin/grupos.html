@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Grupos{% endblock %}
+
+{% block content %}
+<h3 class="mb-3">Administrar Grupos</h3>
+
+<form class="row g-2 mb-4" method="POST" action="{{ url_for('admin_grupos') }}">
+  <div class="col-auto">
+    <input class="form-control" name="nombre" placeholder="Nombre del grupo" required>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-primary">Crear grupo</button>
+  </div>
+</form>
+
+<div class="row g-4">
+  {% for g in grupos %}
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between">
+        <strong>{{ g.nombre }}</strong>
+      </div>
+      <div class="card-body">
+        <h6>Miembros</h6>
+        <ul class="list-group mb-3">
+          {% for gm in g.miembros %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>
+                {{ gm.user.nombre_completo or gm.user.email }}
+                {% if gm.es_lider %}<span class="badge bg-info ms-2">Líder</span>{% endif %}
+              </span>
+              <form method="POST" action="{{ url_for('admin_grupos_del', gid=g.id) }}">
+                <input type="hidden" name="user_id" value="{{ gm.user.id }}">
+                <button class="btn btn-sm btn-outline-danger">Quitar</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="list-group-item text-muted">Sin miembros.</li>
+          {% endfor %}
+        </ul>
+
+        <h6>Añadir/Marcar Líder</h6>
+        <form class="row g-2" method="POST" action="{{ url_for('admin_grupos_add', gid=g.id) }}">
+          <div class="col-8">
+            <select class="form-select" name="user_id" required>
+              <option value="">Selecciona usuario…</option>
+              {% for u in usuarios %}
+                <option value="{{ u.id }}">{{ u.nombre_completo or u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-2 form-check d-flex align-items-center">
+            <input class="form-check-input me-2" type="checkbox" name="es_lider" value="1" id="lider_{{ g.id }}">
+            <label class="form-check-label" for="lider_{{ g.id }}">Líder</label>
+          </div>
+          <div class="col-2">
+            <button class="btn btn-success w-100">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

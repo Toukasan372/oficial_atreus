@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard de Comerciales{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-0">Dashboard de Comerciales</h3>
+    <div class="text-muted small">Estilo minimalista • Información densa sin ruido</div>
+  </div>
+  <div class="d-flex gap-2">
+    <select id="filtroCom" class="form-select form-select-sm" style="min-width:260px;">
+      <option value="">Todos los comerciales</option>
+      {% for u in comerciales %}
+        <option value="{{ u.email }}">{{ (u.nombre_completo or u.email.split('@')[0]) }} — {{ u.email }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- Tarjetas -->
+<div class="row g-3">
+  <div class="col-12 col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-muted small">Ingreso total</div>
+        <div class="fs-4 fw-semibold" id="m_ingreso">$ 0</div>
+        <div class="small text-muted">Periodo: semana</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-muted small">Clientes entrados</div>
+        <div class="fs-4 fw-semibold" id="m_entrados">0</div>
+        <div class="small text-muted" id="m_vs_bajas">Vs bajas: 0</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-muted small">Bajas de clientes</div>
+        <div class="fs-4 fw-semibold" id="m_bajas">0</div>
+        <div class="small text-muted">Netos: <span id="m_netos">0</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-muted small">Tasa de cierre</div>
+        <div class="fs-4 fw-semibold" id="m_cierre">0%</div>
+        <div class="small text-muted">Visitados: —</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficas -->
+<div class="row g-3 mt-1">
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Ingreso por semana</div>
+        <canvas id="chartLine"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Entrados vs Bajas</div>
+        <canvas id="chartBar"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla comerciales por grupo -->
+<div class="card shadow-sm border-0 mt-3">
+  <div class="card-body">
+    <div class="fw-semibold mb-2">Comerciales por grupo</div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Comercial</th><th>Grupo</th>
+            <th>Ingreso</th><th>Entrados</th><th>Bajas</th>
+            <th>Visitados</th><th>Cerrados</th><th>Cierre</th>
+          </tr>
+        </thead>
+        <tbody id="tb_grupo"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+  const $ = (s,r=document)=>r.querySelector(s);
+  const dinero = v => '$ ' + (Number(v||0).toLocaleString());
+
+  let lineChart=null, barChart=null;
+
+  async function loadDashboard(){
+    const com = $('#filtroCom').value || '';
+    const r = await fetch(`/api/dashboard?com=${encodeURIComponent(com)}`);
+    const j = await r.json();
+
+    // Métricas
+    $('#m_ingreso').textContent = dinero(j.ingreso_total);
+    $('#m_entrados').textContent = j.clientes_entrados;
+    $('#m_bajas').textContent = j.bajas_clientes;
+    $('#m_vs_bajas').textContent = `Vs bajas: ${j.bajas_clientes}`;
+    const netos = (j.clientes_entrados - j.bajas_clientes);
+    $('#m_netos').textContent = netos;
+    $('#m_cierre').textContent = (j.tasa_cierre || 0) + '%';
+
+    // Linea ingresos
+    const lbls = j.series.labels;
+    const dataLine = j.series.ingresos_por_semana;
+    if(lineChart) lineChart.destroy();
+    lineChart = new Chart($('#chartLine'), {
+      type: 'line',
+      data: {
+        labels: lbls,
+        datasets: [{
+          label: 'Ingresos',
+          data: dataLine,
+          tension: .35
+        }]
+      },
+      options: {
+        plugins:{ legend:{display:false}},
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
+
+    // Barras entrados vs bajas
+    if(barChart) barChart.destroy();
+    barChart = new Chart($('#chartBar'), {
+      type: 'bar',
+      data: {
+        labels: lbls,
+        datasets: [
+          { label:'Entrados', data: j.series.entrados },
+          { label:'Bajas', data: j.series.bajas }
+        ]
+      },
+      options: {
+        plugins:{ legend:{ position:'top' } },
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
+
+    // Tabla por grupo
+    const tb = $('#tb_grupo');
+    tb.innerHTML = '';
+    j.comerciales_por_grupo.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.comercial}</td>
+        <td><span class="badge text-bg-light">${r.grupo}</span></td>
+        <td>${dinero(r.ingreso)}</td>
+        <td>${r.entrados}</td>
+        <td>${r.bajas}</td>
+        <td>${r.visitados}</td>
+        <td>${r.cerrados}</td>
+        <td>${r.cierre}</td>`;
+      tb.appendChild(tr);
+    });
+
+    // Top 5
+    const cont = $('#top5_list');
+    cont.innerHTML = '';
+    j.top5.forEach((x, i)=>{
+      const div = document.createElement('div');
+      div.className = "d-flex justify-content-between align-items-center border rounded p-2";
+      div.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <div class="badge rounded-circle text-bg-secondary" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${i+1}</div>
+          <div>
+            <div class="fw-semibold">${x.nombre}</div>
+            <div class="small text-muted">${x.email}</div>
+          </div>
+        </div>
+        <div class="fw-semibold">${dinero(x.ingreso)}</div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  $('#filtroCom').addEventListener('change', loadDashboard);
+  $('#btnExport').addEventListener('click', () => {
+    // Simple: descarga los datos JSON
+    fetch(`/api/dashboard?com=${encodeURIComponent($('#filtroCom').value||'')}`)
+      .then(r=>r.json()).then(j=>{
+        const blob = new Blob([JSON.stringify(j,null,2)], {type:"application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'dashboard.json';
+        a.click();
+      });
+  });
+
+  loadDashboard();
+})();
+</script>
+{% endblock %}

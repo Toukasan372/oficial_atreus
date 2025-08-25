@@ -1,0 +1,1163 @@
+<!-- templates/partials/detalle_negocio_modal.html -->
+<form id="form-editar-negocio" action="/negocio/{{ negocio.id }}/editar" method="POST">
+  <div class="modal-header">
+
+    <h5 class="modal-title">Detalle del Negocio</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+  </div>
+
+
+
+
+  <div class="modal-body">
+    <div class="container-fluid">
+      <!-- Cabecera -->
+      <div class="row g-3 align-items-start">
+        <div class="col-md-4 text-center">
+          <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo"
+               class="img-fluid rounded mb-2" style="max-height:140px;opacity:.9;">
+          <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
+            ID #{{ negocio.id }}
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="mb-2">
+            <label class="form-label mb-1">Nombre</label>
+            <input type="text" class="form-control" name="nombre" value="{{ negocio.nombre }}">
+          </div>
+          <div class="small text-muted mb-2">Tipo: {{ negocio.tipo|capitalize }}</div>
+          
+         <div class="d-flex flex-wrap align-items-center gap-2">
+
+  <!-- Comerciales -->
+  <span class="badge text-bg-secondary" id="badge-comerciales">
+    Comercial{% if negocio.comerciales|length != 1 %}es{% endif %}:
+    {{ negocio.comerciales|comerciales_str }}
+  </span>
+  <button type="button"
+          class="btn btn-light btn-sm p-1 border"
+          id="btn-edit-comerciales"
+          title="Editar comerciales">
+    <i class="bi bi-pencil"></i>
+  </button>
+
+  <!-- Licencia -->
+  <span class="badge text-bg-success" id="badge-licencia">
+    Licencia: {{ negocio.licencia or '—' }} {{ negocio.moneda_licencia or 'USD' }}
+  </span>
+  <button type="button"
+          class="btn btn-light btn-sm p-1 border"
+          id="btn-edit-licencia"
+          title="Editar licencia">
+    <i class="bi bi-pencil"></i>
+  </button>
+
+  <!-- Conectividad (solo visual) -->
+  <span class="badge text-bg-info">
+    Conectividad: {{ negocio.conectividad or 0 }} CUP
+  </span>
+</div>
+
+        </div>
+      </div>
+
+      <hr class="my-3">
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs" id="tabsNegocio" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-generales" data-bs-toggle="tab" data-bs-target="#pane-generales" type="button" role="tab">
+            Generales
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-contacto" data-bs-toggle="tab" data-bs-target="#pane-contacto" type="button" role="tab">
+            Contactos
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-servicios" data-bs-toggle="tab" data-bs-target="#pane-servicios" type="button" role="tab">
+            Servicios
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-seguimiento" data-bs-toggle="tab" data-bs-target="#pane-seguimiento" type="button" role="tab">
+            Seguimiento
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content pt-3">
+        <!-- Generales -->
+        <div class="tab-pane fade show active" id="pane-generales" role="tabpanel">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Propietario</label>
+              <input type="text" class="form-control" name="propietario" value="{{ negocio.propietario }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Administrador</label>
+              <input type="text" class="form-control" name="admin" value="{{ negocio.admin or '' }}">
+            </div>
+
+            <!-- Direcciones -->
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label m-0">Dirección</label>
+                <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-direccion">
+                  <i class="bi bi-plus-lg"></i> Agregar
+                </button>
+              </div>
+
+              <div id="lista-direcciones" class="d-flex flex-column gap-2">
+                {% for d in negocio.direcciones %}
+                  <div class="card shadow-sm border-0 rounded-3 dir-card" data-id="{{ d.id }}">
+                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="small text-muted">Calle</div>
+                        <div class="fw-semibold">{{ d.calle }}</div>
+                        {% if d.calle2 %}
+                          <div class="text-muted">{{ d.calle2 }}</div>
+                        {% endif %}
+                      </div>
+                      <div>
+                        <div class="small text-muted">Ciudad</div>
+                        <div class="fw-semibold">{{ d.ciudad }}</div>
+                      </div>
+                      <div>
+                        <div class="small text-muted">Municipio</div>
+                        <div class="fw-semibold">{{ d.municipio }}</div>
+                      </div>
+                      <div>
+                        <div class="small text-muted">Provincia</div>
+                        <div class="fw-semibold">{{ d.provincia }}</div>
+                      </div>
+                    </div>
+                    {% if d.descripcion %}
+                      <div class="card-footer py-1 small text-muted">
+                        {{ d.descripcion }}
+                      </div>
+                    {% endif %}
+                  </div>
+                {% else %}
+                  <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    No hay direcciones registradas.
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observación</label>
+              <textarea class="form-control" name="observacion" rows="2">{{ negocio.observacion or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+
+
+ <!-- Contactos -->
+<div class="tab-pane fade" id="pane-contacto" role="tabpanel">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <label class="form-label m-0">Contactos</label>
+    <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-contacto">
+      <i class="bi bi-plus-lg"></i> Agregar
+    </button>
+  </div>
+
+  <!-- SOLO la lista aquí -->
+  <div id="lista-contactos" class="d-flex flex-column gap-2">
+    {% for c in negocio.contactos %}
+      <div class="card shadow-sm border-0 rounded-3 contacto-card" data-id="{{ c.id }}">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-start">
+          <div class="me-3">
+            <div class="fw-semibold">{{ c.nombre }}</div>
+            <div class="small text-muted">
+              {{ c.cargo or '—' }}{% if c.principal %} • Principal{% endif %}
+            </div>
+          </div>
+          <div class="flex-grow-1 small">
+            <div><i class="bi bi-telephone"></i> {{ c.telefono or '—' }}</div>
+            <div><i class="bi bi-envelope"></i> {{ c.email or '—' }}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light btn-sm btn-edit-contacto" title="Editar">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+          </div>
+        </div>
+        {% if c.notas %}
+          <div class="card-footer py-1 small text-muted">{{ c.notas }}</div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
+        <i class="bi bi-info-circle"></i>
+        No hay contactos registrados.
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Seguimiento -->
+<div class="tab-pane fade" id="pane-seguimiento" role="tabpanel">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <label class="form-label m-0">Seguimientos</label>
+    <!-- Botón DENTRO del modal de negocio -->
+    <button type="button"
+        class="btn btn-outline-primary btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#modalSeguimiento"
+        id="btn-open-seg">
+  <i class="bi bi-clipboard-plus"></i> Añadir seguimiento
+</button>
+  </div>
+
+  <!-- Lista de seguimientos -->
+  <div id="seguimientos-lista" class="d-flex flex-column gap-2">
+    <div class="text-muted small">Cargando…</div>
+  </div>
+</div>
+
+
+        <!-- Contratación (solo lectura por ahora) -->
+<div class="tab-pane fade" id="pane-servicios" role="tabpanel">
+  <!-- Proveedor de Internet -->
+  <div class="mb-3 d-flex align-items-center gap-2">
+    <label for="sel-proveedor" class="small text-muted mb-0">Proveedor de internet</label>
+   <select id="sel-proveedor" class="form-select form-select-sm" style="min-width:180px;">
+  <option value="">— Sin proveedor —</option>
+  {% for p in proveedores %}
+    <option value="{{ p.id }}" {% if negocio.proveedor_id == p.id %}selected{% endif %}>
+      {{ p.nombre }}
+    </option>
+  {% endfor %}
+</select>
+
+  </div>
+
+  <!-- Módulos -->
+  <div class="col-12">
+    <label class="form-label">Módulos</label>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width:35%">Nombre</th>
+            <th>Descripción</th>
+            <th class="text-end" style="width:110px;">Activo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in modulos %}
+            <tr data-mod-id="{{ m.id }}">
+              <td>{{ m.nombre }}</td>
+              <td class="text-muted small">{{ m.descripcion or 'Sin descripción' }}</td>
+              <td class="text-end">
+                <div class="form-check form-switch d-inline-block">
+                  <input class="form-check-input mod-switch"
+                         type="checkbox"
+                         {% if m.id in mods_activos %}checked{% endif %}>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="modal-footer">
+  <input type="hidden" name="id" value="{{ negocio.id }}">
+  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+  <button type="submit" class="btn btn-primary">Guardar cambios</button>
+</form>
+</div>
+
+
+   <form action="{{ url_for('eliminar_negocio', negocio_id=negocio.id) }}" method="POST" style="display:inline;">
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('¿Seguro que deseas eliminar este negocio?');">
+      Eliminar
+    </button>
+  </form>
+</div>
+
+<!-- Modal Agregar/Editar Contacto (FUERA de #lista-contactos) -->
+<div class="modal fade" id="contactoModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="contactoModalTitle">Agregar contacto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-contacto">
+          <input type="hidden" id="ct-id" value="">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" class="form-control" id="ct-nombre" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Cargo</label>
+              <input type="text" class="form-control" id="ct-cargo">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="text" class="form-control" id="ct-telefono">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" id="ct-email">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notas</label>
+              <textarea class="form-control" id="ct-notas" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="ct-principal">
+                <label class="form-check-label" for="ct-principal">
+                  Marcar como contacto principal
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-contacto">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+       
+
+
+
+<!-- Modal Agregar/Editar Dirección (aparece por encima) -->
+<div class="modal fade" id="direccionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="direccionModalTitle">Agregar dirección</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-direccion">
+          <input type="hidden" id="dir-id" value="">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Calle principal *</label>
+              <input type="text" class="form-control" id="dir-calle" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Calle secundaria</label>
+              <input type="text" class="form-control" id="dir-calle2">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Ciudad *</label>
+              <input type="text" class="form-control" id="dir-ciudad" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Código postal</label>
+              <input type="text" class="form-control" id="dir-cp">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">País</label>
+              <input type="text" class="form-control" id="dir-pais">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Provincia *</label>
+              <input type="text" class="form-control" id="dir-provincia" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Municipio *</label>
+              <input type="text" class="form-control" id="dir-municipio" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripción</label>
+              <textarea class="form-control" id="dir-descripcion" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="dir-principal">
+                <label class="form-check-label" for="dir-principal">
+                  Marcar como dirección principal
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-dir">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal: Editar licencia -->
+<div class="modal fade" id="editLicenciaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar licencia</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Monto</label>
+          <input type="number" step="0.01" class="form-control" id="inp-licencia"
+                 value="{{ negocio.licencia or '' }}">
+        </div>
+        <div>
+          <label class="form-label">Moneda</label>
+          <select id="inp-moneda-licencia" class="form-select">
+            {% set m = negocio.moneda_licencia or 'USD' %}
+            <option value="USD" {{ 'selected' if m=='USD' else '' }}>USD</option>
+            <option value="EUR" {{ 'selected' if m=='EUR' else '' }}>EUR</option>
+            <option value="CUP" {{ 'selected' if m=='CUP' else '' }}>CUP</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save-licencia">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar comerciales -->
+<div class="modal fade" id="editComercialesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar comerciales</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2">Selecciona uno o varios comerciales.</p>
+        <select id="sel-comerciales" class="form-select" multiple size="6">
+  {% for u in comerciales_usuarios %}
+    {% set ya_esta = (u.email in correos_existentes) or (u.nombre_completo in nombres_existentes) %}
+    <option value="{{ u.email }}" {{ 'selected' if ya_esta else '' }}>
+      {{ u.nombre_completo or u.email.split('@')[0] }} — {{ u.email }}
+    </option>
+  {% endfor %}
+</select>
+
+
+        <div class="form-text">preciona ctrl y seleciona mas de uno.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save-comerciales">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal Seguimiento -->
+<div class="modal fade" id="modalSeguimiento" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="formSeguimiento">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo seguimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Observación *</label>
+          <textarea class="form-control" name="observacion" rows="4" required></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            <option value="activo" selected>Activo</option>
+            <option value="riesgo">Riesgo</option>
+          </select>
+          <div class="form-text">Si eliges “Riesgo”, se enviará un correo de alerta.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">
+          Guardar
+          <span class="spinner-border spinner-border-sm ms-2 d-none" id="spinSeg" role="status"></span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+(() => {
+  // Si #modalSeguimiento está dentro de otro .modal, muévelo al body
+  const segModalEl = document.getElementById('modalSeguimiento');
+  if (segModalEl && segModalEl.closest('.modal') && segModalEl.parentElement !== document.body) {
+    document.body.appendChild(segModalEl);
+  }
+})();
+</script>
+
+
+<script>
+(() => {
+  // =======================
+  // Setup / helpers
+  // =======================
+  const negocioId = {{ negocio.id }};
+  const detalleModal = document.getElementById('detalleNegocioModal');
+
+  const $  = (id) => document.getElementById(id);
+  const qs = (sel, root=document) => root.querySelector(sel);
+
+  // =======================
+  // Guardar campos generales
+  // =======================
+  const formEditar = $('form-editar-negocio');
+  if (formEditar) {
+    formEditar.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(formEditar);
+      fetch(`/negocio/${negocioId}/editar`, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(j => {
+          if (j.success) {
+            const m = bootstrap.Modal.getInstance(detalleModal);
+            if (m) m.hide();
+            location.reload();
+          } else {
+            alert('Error al guardar: ' + (j.error || 'desconocido'));
+          }
+        })
+        .catch(err => alert('Error: ' + err));
+    });
+  }
+
+  // =======================
+  // DIRECCIONES (CRUD)
+  // =======================
+  const listaDir   = $('lista-direcciones');
+  const dirModalEl = $('direccionModal');
+  const dirModal   = dirModalEl ? new bootstrap.Modal(dirModalEl) : null;
+
+  function limpiarDireccionForm() {
+    $('dir-id').value = '';
+    $('dir-calle').value = '';
+    $('dir-calle2').value = '';
+    $('dir-ciudad').value = '';
+    $('dir-cp').value = '';
+    $('dir-pais').value = '';
+    $('dir-provincia').value = '';
+    $('dir-municipio').value = '';
+    $('dir-descripcion').value = '';
+    $('dir-principal').checked = false;
+  }
+
+  function dirCardHTML(d) {
+    return `
+      <div class="card shadow-sm border-0 rounded-3 dir-card" data-id="${d.id}">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-start">
+          <div>
+            <div class="small text-muted">Calle</div>
+            <div class="fw-semibold">${d.calle || ''}</div>
+            ${d.calle2 ? `<div class="text-muted">${d.calle2}</div>` : ``}
+          </div>
+          <div>
+            <div class="small text-muted">Ciudad</div>
+            <div class="fw-semibold">${d.ciudad || ''}</div>
+          </div>
+          <div>
+            <div class="small text-muted">Municipio</div>
+            <div class="fw-semibold">${d.municipio || ''}</div>
+          </div>
+          <div>
+            <div class="small text-muted">Provincia</div>
+            <div class="fw-semibold">${d.provincia || ''}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light btn-sm btn-edit-dir" title="Editar">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+            <button type="button" class="btn btn-light btn-sm btn-del-dir" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+        ${d.descripcion ? `<div class="card-footer py-1 small text-muted">${d.descripcion}</div>` : ``}
+      </div>`;
+  }
+
+  function wireDirEvents(scope) {
+    if (!scope) return;
+
+    // editar
+    scope.querySelectorAll('.btn-edit-dir').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.dir-card');
+        const id = card?.getAttribute('data-id');
+        if (!id) return;
+        fetch(`/direccion/${id}`)
+          .then(r => r.json())
+          .then(d => {
+            $('direccionModalTitle').textContent = 'Editar dirección';
+            $('dir-id').value = d.id;
+            $('dir-calle').value = d.calle || '';
+            $('dir-calle2').value = d.calle2 || '';
+            $('dir-ciudad').value = d.ciudad || '';
+            $('dir-cp').value = d.cp || '';
+            $('dir-pais').value = d.pais || '';
+            $('dir-provincia').value = d.provincia || '';
+            $('dir-municipio').value = d.municipio || '';
+            $('dir-descripcion').value = d.descripcion || '';
+            $('dir-principal').checked = !!d.principal;
+            dirModal && dirModal.show();
+          });
+      });
+    });
+
+
+     // ------- Proveedor: guardar al cambiar
+  const negocioId = {{ negocio.id }};
+  const selProv = document.getElementById('sel-proveedor');
+
+  if (selProv) {
+    selProv.addEventListener('change', () => {
+      const proveedor_id = selProv.value || null;
+      fetch(`/negocio/${negocioId}/set_proveedor`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ proveedor_id })
+      })
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) {
+          alert('No se pudo actualizar el proveedor: ' + (j.error || 'Error'));
+        }
+      })
+      .catch(err => alert('Error guardando proveedor: ' + err));
+    });
+  }
+
+  // ------- Modulos: toggle
+  document.querySelectorAll('.mod-switch').forEach(sw => {
+    sw.addEventListener('change', async (ev) => {
+      const tr = ev.target.closest('tr');
+      const mid = tr.getAttribute('data-mod-id');
+      try {
+        const r = await fetch(`/negocio/${negocioId}/set_modulo`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ modulo_id: mid, enabled: ev.target.checked })
+        });
+        const j = await r.json();
+        if(!j.success) alert('No se pudo actualizar módulo');
+      } catch(e){ alert('Error red: '+e); }
+    });
+  });
+
+    // eliminar
+    scope.querySelectorAll('.btn-del-dir').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.dir-card');
+        const id = card?.getAttribute('data-id');
+        if (!id) return;
+        if (!confirm('¿Eliminar esta dirección?')) return;
+        fetch(`/direccion/${id}`, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(j => {
+            if (j.success) {
+              card.remove();
+              if (!listaDir.querySelector('.dir-card')) {
+                listaDir.innerHTML = `
+                  <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    No hay direcciones registradas.
+                  </div>`;
+              }
+            } else {
+              alert('No se pudo eliminar');
+            }
+          });
+      });
+    });
+  }
+
+  if (listaDir) wireDirEvents(listaDir);
+
+  // abrir modal crear dirección
+  const btnAddDir = $('btn-add-direccion');
+  if (btnAddDir && dirModal) {
+    btnAddDir.addEventListener('click', () => {
+      limpiarDireccionForm();
+      $('direccionModalTitle').textContent = 'Agregar dirección';
+      dirModal.show();
+    });
+  }
+
+  // guardar dirección
+  const btnGuardarDir = $('btn-guardar-dir');
+  if (btnGuardarDir) {
+    btnGuardarDir.addEventListener('click', () => {
+      if (
+        !$('dir-calle').value.trim() ||
+        !$('dir-ciudad').value.trim() ||
+        !$('dir-provincia').value.trim() ||
+        !$('dir-municipio').value.trim()
+      ) {
+        alert('Complete los campos requeridos (*)');
+        return;
+      }
+
+      const payload = {
+        calle: $('dir-calle').value.trim(),
+        calle2: $('dir-calle2').value.trim(),
+        ciudad: $('dir-ciudad').value.trim(),
+        cp: $('dir-cp').value.trim(),
+        pais: $('dir-pais').value.trim(),
+        provincia: $('dir-provincia').value.trim(),
+        municipio: $('dir-municipio').value.trim(),
+        descripcion: $('dir-descripcion').value.trim(),
+        principal: $('dir-principal').checked
+      };
+
+      const idDir = $('dir-id').value;
+
+      // editar
+      if (idDir) {
+        fetch(`/direccion/${idDir}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(j => {
+          if (j.success) {
+            fetch(`/direccion/${idDir}`).then(r => r.json()).then(d => {
+              const card = listaDir.querySelector(`.dir-card[data-id="${idDir}"]`);
+              const tmp = document.createElement('div');
+              tmp.innerHTML = dirCardHTML(d).trim();
+              const nueva = tmp.firstElementChild;
+              card.replaceWith(nueva);
+              wireDirEvents(nueva);
+              dirModal && dirModal.hide();
+            });
+          } else {
+            alert('No se pudo guardar la dirección.');
+          }
+        });
+      } else {
+        // crear
+        fetch(`/negocio/${negocioId}/direccion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(j => {
+          if (j.success) {
+            const d = Object.assign({ id: j.id }, payload);
+            if (listaDir.querySelector('.alert')) listaDir.innerHTML = '';
+            const tmp = document.createElement('div');
+            tmp.innerHTML = dirCardHTML(d).trim();
+            const nueva = tmp.firstElementChild;
+            listaDir.appendChild(nueva);
+            wireDirEvents(nueva);
+            dirModal && dirModal.hide();
+          } else {
+            alert('No se pudo guardar la dirección.');
+          }
+        });
+      }
+    });
+  }
+
+   const selProv = document.getElementById('sel-proveedor');
+  if (selProv) {
+    selProv.addEventListener('change', () => {
+      const proveedor_id = selProv.value || null;
+      fetch(`/negocio/${negocioId}/set_proveedor`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ proveedor_id })
+      })
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) alert(j.error || 'No se pudo guardar el proveedor.');
+      })
+      .catch(err => alert('Error: ' + err));
+    });
+  }
+
+  // Toggle de módulos
+  document.querySelectorAll('.mod-switch').forEach(sw => {
+    sw.addEventListener('change', () => {
+      const tr = sw.closest('tr');
+      const modulo_id = Number(tr?.dataset?.modId || 0);
+      fetch(`/negocio/${negocioId}/set_modulo`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ modulo_id, enabled: sw.checked })
+      })
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) {
+          alert(j.error || 'No se pudo actualizar el módulo.');
+          sw.checked = !sw.checked; // revertir en caso de error
+        }
+      })
+      .catch(err => { alert('Error: ' + err); sw.checked = !sw.checked; });
+    });
+  });
+
+  // =======================
+  // CONTACTOS (CRUD)
+  // =======================
+  // Backend esperado:
+  //  POST   /negocio/:id/contacto       -> {success:true,id}
+  //  GET    /contacto/:id               -> contacto JSON
+  //  PUT    /contacto/:id               -> {success:true}
+  //  DELETE /contacto/:id               -> {success:true}
+
+  const listaC     = $('lista-contactos');
+  const ctModalEl  = $('contactoModal');
+  const ctModal    = ctModalEl ? new bootstrap.Modal(ctModalEl) : null;
+  const btnAddCt   = $('btn-add-contacto');
+  const btnSaveCt  = $('btn-guardar-contacto');
+
+  function $ct(id){ return document.getElementById(id); }
+
+  function limpiarContactoForm(){
+    $ct('ct-id').value = '';
+    $ct('ct-nombre').value = '';
+    $ct('ct-cargo').value = '';
+    $ct('ct-telefono').value = '';
+    $ct('ct-email').value = '';
+    $ct('ct-notas').value = '';
+    $ct('ct-principal').checked = false;
+  }
+
+  function contactoCardHTML(c){
+    return `
+    <div class="card shadow-sm border-0 rounded-3 contacto-card" data-id="${c.id}">
+      <div class="card-body py-2 px-3 d-flex justify-content-between align-items-start">
+        <div class="me-3">
+          <div class="fw-semibold">${c.nombre || ''}</div>
+          <div class="small text-muted">${c.cargo || '—'}${c.principal ? ' • Principal' : ''}</div>
+        </div>
+        <div class="flex-grow-1 small">
+          <div><i class="bi bi-telephone"></i> ${c.telefono || '—'}</div>
+          <div><i class="bi bi-envelope"></i> ${c.email || '—'}</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-light btn-sm btn-edit-contacto" title="Editar">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+          <button type="button" class="btn btn-light btn-sm btn-del-contacto" title="Eliminar">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+      ${c.notas ? `<div class="card-footer py-1 small text-muted">${c.notas}</div>` : ``}
+    </div>`;
+  }
+
+  function wireContactoEvents(scope){
+    if (!scope) return;
+
+    // editar
+    scope.querySelectorAll('.btn-edit-contacto').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const card = btn.closest('.contacto-card');
+        const id = card?.getAttribute('data-id');
+        if (!id) return;
+        fetch(`/contacto/${id}`).then(r=>r.json()).then(c=>{
+          $('contactoModalTitle').textContent = 'Editar contacto';
+          $ct('ct-id').value = c.id;
+          $ct('ct-nombre').value = c.nombre || '';
+          $ct('ct-cargo').value = c.cargo || '';
+          $ct('ct-telefono').value = c.telefono || '';
+          $ct('ct-email').value = c.email || '';
+          $ct('ct-notas').value = c.notas || '';
+          $ct('ct-principal').checked = !!c.principal;
+          ctModal && ctModal.show();
+        });
+      });
+    });
+
+    // eliminar
+    scope.querySelectorAll('.btn-del-contacto').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const card = btn.closest('.contacto-card');
+        const id = card?.getAttribute('data-id');
+        if (!id) return;
+        if(!confirm('¿Eliminar este contacto?')) return;
+        fetch(`/contacto/${id}`, {method:'DELETE'})
+          .then(r=>r.json())
+          .then(j=>{
+            if(j.success){
+              card.remove();
+              if(!listaC.querySelector('.contacto-card')){
+                listaC.innerHTML = `
+                  <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    No hay contactos registrados.
+                  </div>`;
+              }
+            } else {
+              alert('No se pudo eliminar');
+            }
+          });
+      });
+    });
+  }
+
+  if (listaC) wireContactoEvents(listaC);
+
+  // abrir modal crear contacto
+  if (btnAddCt && ctModal) {
+    btnAddCt.addEventListener('click', ()=>{
+      limpiarContactoForm();
+      $('contactoModalTitle').textContent = 'Agregar contacto';
+      ctModal.show();
+    });
+  }
+
+  // guardar contacto (crear/editar)
+  if (btnSaveCt) {
+    btnSaveCt.addEventListener('click', ()=>{
+      if(!$ct('ct-nombre').value.trim()){
+        alert('El nombre es obligatorio');
+        return;
+      }
+      const payload = {
+        nombre:   $ct('ct-nombre').value.trim(),
+        cargo:    $ct('ct-cargo').value.trim(),
+        telefono: $ct('ct-telefono').value.trim(),
+        email:    $ct('ct-email').value.trim(),
+        notas:    $ct('ct-notas').value.trim(),
+        principal:$ct('ct-principal').checked
+      };
+      const cid = $ct('ct-id').value;
+
+      // editar
+      if (cid) {
+        fetch(`/contacto/${cid}`, {
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(j=>{
+          if(j.success){
+            fetch(`/contacto/${cid}`).then(r=>r.json()).then(c=>{
+              const card = listaC.querySelector(`.contacto-card[data-id="${cid}"]`);
+              const tmp = document.createElement('div');
+              tmp.innerHTML = contactoCardHTML(c).trim();
+              const nueva = tmp.firstElementChild;
+              card.replaceWith(nueva);
+              wireContactoEvents(nueva);
+              ctModal && ctModal.hide();
+            });
+          } else {
+            alert('No se pudo guardar.');
+          }
+        });
+      } else {
+        // crear
+        fetch(`/negocio/${negocioId}/contacto`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(j=>{
+          if(j.success){
+            const c = Object.assign({id: j.id}, payload);
+            if(listaC.querySelector('.alert')) listaC.innerHTML = '';
+            const tmp = document.createElement('div');
+            tmp.innerHTML = contactoCardHTML(c).trim();
+            const nueva = tmp.firstElementChild;
+            listaC.appendChild(nueva);
+            wireContactoEvents(nueva);
+            ctModal && ctModal.hide();
+          } else {
+            alert('No se pudo guardar.');
+          }
+        });
+      }
+    });
+  }
+
+})();
+</script>
+
+<script>
+(() => {
+  // Usa el negocioId ya existente en tu template:
+  const negocioId = {{ negocio.id }};
+  const contSeg = document.getElementById('seguimientos-lista');
+  const formSeg = document.getElementById('formSeguimiento');
+  const spinSeg = document.getElementById('spinSeg');
+
+  async function cargarSeguimientos() {
+    if (!contSeg) return;
+    contSeg.innerHTML = '<div class="text-muted small">Cargando…</div>';
+    try {
+      const r = await fetch(`/negocio/${negocioId}/seguimientos`);
+      const j = await r.json();
+      if (!j.success) throw 0;
+
+      if (!j.items.length) {
+        contSeg.innerHTML = '<div class="text-muted small">Sin seguimientos.</div>';
+        return;
+      }
+
+      contSeg.innerHTML = j.items.map(s => `
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between">
+            <span class="badge ${s.estado==='riesgo' ? 'bg-danger' : 'bg-success'}">
+              ${s.estado}
+            </span>
+            <small class="text-muted">${s.creado_en}</small>
+          </div>
+          <div class="mt-2">${s.observacion || ''}</div>
+          <div class="mt-1 text-muted small">por ${s.creado_por_email || '—'}</div>
+        </div>
+      `).join('');
+    } catch(e) {
+      contSeg.innerHTML = '<div class="text-danger small">Error cargando seguimientos.</div>';
+    }
+  }
+
+  if (formSeg) {
+    formSeg.addEventListener('submit', async (ev) => {
+      ev.preventDefault();     // 👈 evita redirección
+      ev.stopPropagation();
+
+      const fd = new FormData(formSeg);
+      const payload = {
+        observacion: (fd.get('observacion') || '').trim(),
+        estado: (fd.get('estado') || 'activo')
+      };
+      if (!payload.observacion) {
+        alert('La observación es obligatoria'); 
+        return;
+      }
+
+      spinSeg?.classList.remove('d-none');
+      try {
+        const r = await fetch(`/negocio/${negocioId}/seguimientos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.error || 'No se pudo guardar');
+
+        // Cerrar modal y refrescar lista
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalSeguimiento'));
+        modal?.hide();
+        formSeg.reset();
+        await cargarSeguimientos();
+      } catch (e) {
+        alert(e.message || 'Error guardando seguimiento');
+      } finally {
+        spinSeg?.classList.add('d-none');
+      }
+    });
+  }
+
+  // Cuando el usuario abre la pestaña de Seguimiento, carga la lista (una sola vez)
+  const tabSegBtn = document.getElementById('tab-seguimiento');
+  if (tabSegBtn) {
+    tabSegBtn.addEventListener('shown.bs.tab', () => {
+      cargarSeguimientos();
+    });
+  }
+  // Si quieres cargarla desde ya (opcional):
+  // cargarSeguimientos();
+})();
+</script>
+
+
+
+<script>
+(() => {
+  const negocioId = {{ negocio.id }};
+  const $ = (s, r=document) => r.querySelector(s);
+
+  // Abrir modales
+  $('#btn-edit-licencia')?.addEventListener('click', () => {
+    new bootstrap.Modal($('#editLicenciaModal')).show();
+  });
+  $('#btn-edit-comerciales')?.addEventListener('click', () => {
+    new bootstrap.Modal($('#editComercialesModal')).show();
+  });
+
+  // Guardar Licencia (usa tu endpoint /negocio/<id>/editar)
+  $('#btn-save-licencia')?.addEventListener('click', async () => {
+    const licencia = $('#inp-licencia').value.trim();
+    const moneda = $('#inp-moneda-licencia').value;
+    const r = await fetch(`/negocio/${negocioId}/editar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licencia, moneda_licencia: moneda })
+    });
+    const j = await r.json().catch(()=>({}));
+    if (j && j.success) {
+      // Actualiza el badge sin recargar
+      $('#badge-licencia').textContent = `Licencia: ${licencia || '—'} ${moneda || 'USD'}`;
+      bootstrap.Modal.getInstance($('#editLicenciaModal')).hide();
+    } else {
+      alert('No se pudo guardar la licencia.');
+    }
+  });
+
+  // Guardar Comerciales
+  $('#btn-save-comerciales')?.addEventListener('click', async () => {
+    const emails = Array.from($('#sel-comerciales').selectedOptions).map(o => o.value);
+    const r = await fetch(`/negocio/${negocioId}/comerciales`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails })
+    });
+    const j = await r.json().catch(()=>({}));
+    if (j && j.success) {
+      $('#badge-comerciales').textContent = `Comercial${emails.length!==1?'es':''}: ${j.etiqueta}`;
+      bootstrap.Modal.getInstance($('#editComercialesModal')).hide();
+    } else {
+      alert('No se pudo guardar los comerciales.');
+    }
+  });
+})();
+</script>
+
+<style>
+/* transiciones de tabs */
+.tab-pane { transition: opacity .2s ease-in-out, transform .2s ease-in-out; }
+.tab-pane:not(.show) { opacity: 0; transform: translateY(4px); }
+/* asegurar que el modal de dirección flote por encima */
+#direccionModal .modal-dialog { z-index: 1060; }
+</style>
