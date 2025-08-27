@@ -1,0 +1,74 @@
+// Obtiene valores del modal y envía al backend
+async function guardarClienteDesdeModal() {
+  const payload = {
+    nombre_negocio: document.querySelector('#cli-nombre').value.trim(),
+    estado_id:      document.querySelector('#cli-estado').value || null, // si usas catálogo con id
+    observaciones:  document.querySelector('#cli-observaciones').value.trim() || null,
+    contacto: {
+      nombre:   document.querySelector('#cli-contacto-nombre')?.value.trim() || '',
+      telefono: document.querySelector('#cli-contacto-telefono')?.value.trim() || ''
+    },
+    direcciones: [{
+      calle:      document.querySelector('#cli-calle').value.trim(),
+      municipio:  document.querySelector('#cli-municipio').value.trim(),
+      provincia:  document.querySelector('#cli-provincia').value.trim(),
+      ciudad:     document.querySelector('#cli-ciudad')?.value.trim() || '', // o lo dejas vacío y el backend usa municipio
+      principal:  true
+    }]
+  };
+
+  try {
+    const res = await fetch('/clientes/nuevo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const html = await res.text();
+      throw new Error('Respuesta no-JSON del servidor:\n' + html.slice(0, 400));
+    }
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'No se pudo guardar el cliente.');
+    }
+
+    // OK: cierra modal y refresca lista
+    // Si usas Bootstrap modal:
+    const modalEl = document.getElementById('modal-nuevo-cliente');
+    if (modalEl) {
+      try {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+      } catch {}
+    }
+
+    // refresca la tabla/lista; puedes recargar o hacer un fetch parcial:
+    location.reload();
+
+  } catch (err) {
+    alert('No se pudo guardar el cliente.\n' + err.message);
+  }
+}
+
+// Enlaza el botón "Guardar" del modal
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('#btn-guardar-cliente');
+  if (btn) btn.addEventListener('click', guardarClienteDesdeModal);
+
+  // Enter en inputs para disparar guardar
+  ['#cli-nombre','#cli-calle','#cli-municipio','#cli-provincia','#cli-ciudad','#cli-observaciones'].forEach(sel=>{
+    const el = document.querySelector(sel);
+    if (el) el.addEventListener('keydown', e=>{
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        guardarClienteDesdeModal();
+      }
+    });
+  });
+});

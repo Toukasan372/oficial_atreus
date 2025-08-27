@@ -257,6 +257,7 @@ class ClienteEstadoCatalogo(db.Model):
     nombre = db.Column(db.String(80), unique=True, nullable=False)
 
 class Cliente(db.Model):
+    __bind_key__ = 'clientes'
     __tablename__ = "cliente"
     id = db.Column(db.Integer, primary_key=True)
     nombre_negocio = db.Column(db.String(200), nullable=False)
@@ -267,12 +268,18 @@ class Cliente(db.Model):
     creado_por_email = db.Column(db.String(120), index=True, nullable=True)
     creado_por_id    = db.Column(db.Integer, nullable=True)  # opcional, por si quieres guardar el id
 
+      # NUEVO: control de baja
+    is_baja       = db.Column(db.Boolean, default=False)        # bloquea edición
+    baja_en       = db.Column(db.DateTime, nullable=True)       # cuándo se dio de baja
+    baja_por_email= db.Column(db.String(120), nullable=True)    # quién la dio
+
 
     # relaciones
     direcciones = db.relationship('ClienteDireccion', backref='cliente',
                                   cascade='all, delete-orphan', lazy=True)
 
 class ClienteDireccion(db.Model):
+    __bind_key__ = 'clientes'
     __tablename__ = "cliente_direccion"
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
@@ -294,19 +301,21 @@ class ClienteContacto(db.Model):
 
 
 def _cliente_to_dict(c: Cliente):
-    d = next((d for d in c.direcciones if d.principal) , None)
+    d = next((d for d in c.direcciones if d.principal), None)
     return {
         "id": c.id,
         "nombre_negocio": c.nombre_negocio,
         "estado": c.estado,
         "observaciones": c.observaciones,
         "creado_en": c.creado_en.isoformat() if c.creado_en else None,
+        "creado_por_email": c.creado_por_email,     # <-- añade esto si lo vas a mostrar
         "direccion": {
             "calle": d.calle if d else None,
             "municipio": d.municipio if d else None,
             "provincia": d.provincia if d else None,
         } if d else None
     }
+
 
 def build_seguimiento_pdf(negocio, seguimiento, logo_path=None):
     """
@@ -503,83 +512,151 @@ def migrate_clientes_autor():
     if not _sqlite_column_exists(db_path, 'cliente', 'creado_por_id'):
         _sqlite_add_column(db_path, 'cliente', 'creado_por_id', 'INTEGER')
 
+# -----------------------
+# Log de bajas (JSONL)
+# -----------------------
+@app.post("/clientes/<int:cid>/baja")
+@login_required
+def clientes_baja(cid):
+    # Cliente en la BD de clientes
+    c = Cliente.query.get_or_404(cid)
+    # Si ya está de baja, no hagas nada
+    if getattr(c, "is_baja", False):
+        return jsonify(success=True, message="El cliente ya está de baja.")
+
+    c.is_baja = True
+    c.baja_en = datetime.utcnow()
+    c.baja_por_email = (session.get("user_email") or "").strip().lower()
+
+    try:
+        db.session.commit()
+        return jsonify(success=True, id=c.id, is_baja=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 400
+
+@app.post("/clientes/<int:cid>/reactivar")
+@login_required
+def clientes_reactivar(cid):
+    # Solo admin puede reactivar
+    if session.get("user_role") == "asistente":
+        return jsonify(success=False, error="Solo un administrador puede reactivar."), 403
+
+    c = Cliente.query.get_or_404(cid)
+    if not getattr(c, "is_baja", False):
+        return jsonify(success=True, message="El cliente ya estaba activo.")
+
+    c.is_baja = False
+    c.baja_en = None
+    c.baja_por_email = None
+
+    try:
+        db.session.commit()
+        return jsonify(success=True, id=c.id, is_baja=False)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 400
+
+def ensure_cliente_baja_columns():
+    # toma la ruta física del bind clientes
+    db_uri = app.config['SQLALCHEMY_BINDS']['clientes']
+    db_path = db_uri.split('///', 1)[-1]
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    # ¿existe la tabla cliente?
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cliente';")
+    has_table = cur.fetchone() is not None
+    if not has_table:
+        # si no existe, no alteres nada; db.create_all(bind='clientes') ya la creará
+        conn.close()
+        return
+
+    # columnas actuales
+    cur.execute("PRAGMA table_info(cliente);")
+    cols = {r[1] for r in cur.fetchall()}
+
+    # agrega lo que falte
+    if 'is_baja' not in cols:
+        cur.execute("ALTER TABLE cliente ADD COLUMN is_baja INTEGER DEFAULT 0;")
+    if 'baja_en' not in cols:
+        cur.execute("ALTER TABLE cliente ADD COLUMN baja_en DATETIME;")
+    if 'baja_por_email' not in cols:
+        cur.execute("ALTER TABLE cliente ADD COLUMN baja_por_email TEXT;")
+    if 'creado_por_email' not in cols:
+        cur.execute("ALTER TABLE cliente ADD COLUMN creado_por_email TEXT;")
+    if 'creado_por_id' not in cols:
+        cur.execute("ALTER TABLE cliente ADD COLUMN creado_por_id INTEGER;")
+
+    conn.commit()
+    conn.close()
+
+
+def _ensure_bajas_log_dir():
+    d = os.path.dirname(BAJAS_LOG_PATH)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+def baja_log_add(tipo: str, entidad_id: int, nombre: str = None,
+                 comerciales: list[str] = None, autor_email: str = None,
+                 fecha_dt: datetime | None = None):
+    """
+    Registra una baja en un archivo JSONL.
+    tipo: 'negocio' | 'cliente'
+    comerciales: lista de emails (si aplica)
+    """
+    _ensure_bajas_log_dir()
+    ev = {
+        "ts": (fecha_dt or datetime.utcnow()).isoformat(),
+        "tipo": (tipo or "otro"),
+        "id": int(entidad_id),
+        "nombre": nombre or "",
+        "comerciales": [c.strip().lower() for c in (comerciales or []) if c],
+        "autor": (autor_email or "").strip().lower()
+    }
+    with open(BAJAS_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+
+def baja_log_iter(fecha_desde: datetime | None = None,
+                  fecha_hasta: datetime | None = None,
+                  tipo: str | None = None):
+    """
+    Itera eventos del log. Permite filtrar por rango de fechas y tipo.
+    """
+    if not os.path.exists(BAJAS_LOG_PATH):
+        return
+    for line in open(BAJAS_LOG_PATH, "r", encoding="utf-8"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except Exception:
+            continue
+        if tipo and ev.get("tipo") != tipo:
+            continue
+        # filtro por fecha
+        try:
+            ts = datetime.fromisoformat(ev.get("ts"))
+        except Exception:
+            continue
+        if fecha_desde and ts < fecha_desde:
+            continue
+        if fecha_hasta and ts > fecha_hasta:
+            continue
+        ev["_dt"] = ts
+        yield ev
 
 # =========================
 # DASHBOARD
 # =========================
 
-@app.get("/dashboard")
-@login_required
-def dashboard_view():
-    # Comerciales para el filtro (opcional)
-    rol_com = db_users.query(Role).filter_by(name='comercial').first()
-    comerciales = db_users.query(User).filter(User.role == rol_com)\
-                    .order_by(User.nombre_completo, User.email).all() if rol_com else []
-    return render_template("admin/dashboard.html", comerciales=comerciales)
 
-
-
-@app.route("/api/clientes", methods=["GET"])
-def api_clientes_list():
-    """
-    Devuelve JSON con los clientes visibles para el usuario actual,
-    ordenados por fecha de creación (desc).
-    """
-    query = query_clientes_visibles_para_usuario(
-        Cliente.query.order_by(Cliente.creado_en.desc())
-    )
-    clientes = query.all()
-    return jsonify({"success": True, "items": [_cliente_to_dict(c) for c in clientes]})
 
 @app.route("/api/clientes", methods=["POST"])
-def api_clientes_create():
-    """
-    Crea un cliente y lo liga al usuario logueado (creado_por_email / creado_por_id).
-    Espera JSON como:
-    {
-      "nombre_negocio": "Texto",
-      "estado": "Hablado" | "Cerrado" | null,
-      "observaciones": "texto",             # opcional
-      "direccion": {                        # opcional
-          "calle": "Av. 1",
-          "municipio": "Centro",
-          "provincia": "Pinar"
-      }
-    }
-    """
-    data = request.get_json(force=True) or {}
-
-    nombre = (data.get("nombre_negocio") or "").strip()
-    if not nombre:
-        return jsonify(success=False, error="Nombre requerido"), 400
-
-    autor_email = (session.get('user_email') or '').strip().lower()
-    autor_id    = session.get('user_id')
-
-    c = Cliente(
-        nombre_negocio=nombre,
-        estado=(data.get("estado") or None),
-        observaciones=(data.get("observaciones") or None),
-        creado_por_email=(autor_email or None),
-        creado_por_id=(autor_id or None)
-    )
-    db.session.add(c)
-    db.session.flush()  # para tener c.id
-
-    # Dirección principal (opcional)
-    dir_data = data.get("direccion") or {}
-    if dir_data:
-        d = ClienteDireccion(
-            cliente_id=c.id,
-            calle=(dir_data.get("calle") or None),
-            municipio=(dir_data.get("municipio") or None),
-            provincia=(dir_data.get("provincia") or None),
-            principal=True
-        )
-        db.session.add(d)
-
-    db.session.commit()
-    return jsonify(success=True, item=_cliente_to_dict(c)), 201
+def api_clientes_alias():
+    return clientes_nuevo() 
 
 @app.route("/api/clientes/<int:cid>", methods=["GET"])
 def api_clientes_detail(cid):
@@ -589,6 +666,9 @@ def api_clientes_detail(cid):
 @app.route("/api/clientes/<int:cid>", methods=["PUT"])
 def api_clientes_update(cid):
     c = Cliente.query.get_or_404(cid)
+    if getattr(c, "is_baja", False) and session.get("user_role") != "admin":
+        return jsonify(success=False, error="Este cliente está de baja y no se puede editar."), 403
+
     data = request.get_json(force=True)
     if "nombre_negocio" in data:
         n = (data.get("nombre_negocio") or "").strip()
@@ -1221,84 +1301,77 @@ def clientes_actualizar(cid):
 # Crear cliente (AJAX desde el modal)
 @app.route("/clientes/nuevo", methods=["POST"])
 def clientes_nuevo():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(force=True) or {}
 
     # ------- cliente -------
     nombre = (data.get("nombre_negocio") or "").strip()
     if not nombre:
         return jsonify(success=False, error="El nombre del cliente es obligatorio"), 400
 
+    estado = (data.get("estado") or "").strip() or None     # <-- string ("Posible cliente", "Cerrado", etc.)
+    obs    = (data.get("observaciones") or "").strip() or None
+
+    autor_email = (session.get('user_email') or '').strip().lower() or None
+    autor_id    = session.get('user_id')
+
     c = Cliente(
         nombre_negocio=nombre,
-        estado_id=(int(data["estado_id"]) if data.get("estado_id") else None),
-        observaciones=(data.get("observaciones") or "").strip() or None
+        estado=estado,                      # <-- string
+        observaciones=obs,
+        creado_por_email=autor_email,       # <-- quién lo creó
+        creado_por_id=autor_id
     )
     db.session.add(c)
     db.session.flush()  # para obtener c.id
 
-    # ------- contacto -------
-    contacto = data.get("contacto") or {}
-    if (contacto.get("nombre") or "").strip():
-        db.session.add(ClienteContacto(
+    # ------- dirección (objeto 'direccion' sencillo) -------
+    dir_obj = data.get("direccion") or {}
+    if any(dir_obj.get(k) for k in ("calle", "municipio", "provincia")):
+        d = ClienteDireccion(
             cliente_id=c.id,
-            nombre=(contacto.get("nombre") or "").strip(),
-            telefono=(contacto.get("telefono") or "").strip() or None
-        ))
-
-    # ------- dirección -------
-    dir_payloads = data.get("direcciones") or []
-    if dir_payloads:
-        d0 = dir_payloads[0] or {}
-        calle      = (d0.get("calle") or "").strip()
-        municipio  = (d0.get("municipio") or "").strip()
-        provincia  = (d0.get("provincia") or "").strip()
-        ciudad     = (d0.get("ciudad") or "").strip() or municipio  # 👈 usa municipio como ciudad
-        principal  = bool(d0.get("principal"))
-
-        # evitar NULL en campos NOT NULL
-        if not calle:
-            calle = "—"
-        if not ciudad:
-            ciudad = "—"
-        if not municipio:
-            municipio = "—"
-        if not provincia:
-            provincia = "—"
-
-        db.session.add(ClienteDireccion(
-            cliente_id=c.id,
-            calle=calle,
-            calle2=None,
-            ciudad=ciudad,
-            cp=None,
-            pais=None,
-            provincia=provincia,
-            municipio=municipio,
-            descripcion=None,
-            principal=principal
-        ))
+            calle=(dir_obj.get("calle") or None),
+            municipio=(dir_obj.get("municipio") or None),
+            provincia=(dir_obj.get("provincia") or None),
+            principal=True
+        )
+        db.session.add(d)
 
     db.session.commit()
-    return jsonify(success=True, id=c.id)
+    return jsonify(success=True, item=_cliente_to_dict(c)), 201
 
 
 
-
-# ===== Eliminar cliente =====
 @app.route('/clientes/<int:id>/eliminar', methods=['POST'])
 def clientes_eliminar(id):
     c = Cliente.query.get_or_404(id)
-    # borra dependencias (si no tienes cascade)
-    try:
-        ClienteContacto.query.filter_by(cliente_id=id).delete()
-        ClienteDireccion.query.filter_by(cliente_id=id).delete()
-    except Exception:
-        pass
 
-    db.session.delete(c)
-    db.session.commit()
-    flash('Cliente eliminado', 'success')
+    # capturar el autor original si existe, para atribuir la baja
+    owner_email = (getattr(c, 'creado_por_email', None) or '').strip().lower() or (session.get('user_email') or '')
+    eliminado_por = (session.get('user_email') or '').strip().lower()
+
+    try:
+        # borra dependencias (si no tienes cascade)
+        try:
+            ClienteContacto.query.filter_by(cliente_id=id).delete()
+        except Exception:
+            pass
+        try:
+            ClienteDireccion.query.filter_by(cliente_id=id).delete()
+        except Exception:
+            pass
+
+        # log de baja (archivo JSON)
+        log_baja_cliente(c, owner_email=owner_email, eliminado_por=eliminado_por)
+
+        db.session.delete(c)
+        db.session.commit()
+        flash('Cliente eliminado', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error al eliminar: ' + str(e), 'danger')
+
     return redirect(url_for('clientes_lista'))
+
 
 
 
@@ -1957,13 +2030,30 @@ def eliminar_direccion_simple(dir_id):
     return jsonify({"success": True})
 
     
-@app.route('/eliminar_negocio/<int:negocio_id>', methods=['POST'])
+@app.post('/eliminar_negocio/<int:negocio_id>')
+@login_required
 def eliminar_negocio(negocio_id):
     negocio = Negocio.query.get_or_404(negocio_id)
-    db.session.delete(negocio)
-    db.session.commit()
-    flash('Negocio eliminado correctamente.', 'success')
+
+    # comerciales asociados (para atribuir la baja a sus comerciales)
+    com_emails = [ (c.comercial_email or '').strip().lower()
+                   for c in (negocio.comerciales or []) if c.comercial_email ]
+
+    eliminado_por = (session.get('user_email') or '').strip().lower()
+
+    try:
+        # log de baja (archivo JSON, sin nuevas tablas)
+        log_baja_negocio(negocio, comerciales_emails=com_emails, eliminado_por=eliminado_por)
+
+        db.session.delete(negocio)  # Cascades: direcciones, contactos, comerciales, módulos
+        db.session.commit()
+        flash('Negocio eliminado correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'danger')
+
     return redirect(url_for('inicio'))
+
 
 # -----------------------------------------------------------------------------
 # Conectividad / Ediciones varias
@@ -2437,34 +2527,125 @@ def api_agregar_negocio():
     db.session.commit()
     return jsonify({"mensaje": "Negocio creado", "id": nuevo.id}), 201
 
+# --- Bajas logger (archivo JSON) ---
+BAJAS_LOG_PATH = 'bajas_log.json'
+
+def _load_bajas():
+    if not os.path.exists(BAJAS_LOG_PATH):
+        return []
+    try:
+        with open(BAJAS_LOG_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data or []
+    except Exception:
+        return []
+
+def _save_bajas(items):
+    try:
+        with open(BAJAS_LOG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def log_baja_cliente(cliente, owner_email: str, eliminado_por: str):
+    items = _load_bajas()
+    items.append({
+        "tipo": "cliente",
+        "id": int(cliente.id),
+        "nombre": getattr(cliente, "nombre_negocio", None),
+        "owner_email": (owner_email or "").lower(),
+        "eliminado_por": (eliminado_por or "").lower(),
+        "ts": datetime.utcnow().isoformat()
+    })
+    _save_bajas(items)
+
+def log_baja_negocio(negocio, comerciales_emails: list, eliminado_por: str):
+    items = _load_bajas()
+    items.append({
+        "tipo": "negocio",
+        "id": int(negocio.id),
+        "nombre": negocio.nombre,
+        "comerciales": [ (e or "").lower() for e in (comerciales_emails or []) if e ],
+        "eliminado_por": (eliminado_por or "").lower(),
+        "ts": datetime.utcnow().isoformat()
+    })
+    _save_bajas(items)
 
 
+@app.get("/dashboard", endpoint="dashboard")
+@login_required
+def dashboardw():
+    # Comerciales para el filtro
+    rol_com = db_users.query(Role).filter_by(name='comercial').first()
+    comerciales = (db_users.query(User)
+                   .filter(User.role == rol_com)
+                   .order_by(User.nombre_completo, User.email)
+                   .all()) if rol_com else []
+    return render_template("admin/dashboard.html", comerciales=comerciales)
 
+@app.post("/clientes/<int:cid>/baja")
+@login_required
+def clientes_dar_baja(cid):
+    c = Cliente.query.get_or_404(cid)
+    if c.is_baja:
+        return jsonify(success=True)  # ya está en baja
+
+    c.is_baja = True
+    c.baja_en = datetime.utcnow()
+    c.baja_por_email = (session.get('user_email') or '').strip().lower()
+    # Opcional: mueve el estado textual a "Baja"
+    c.estado = "Baja"
+    db.session.commit()
+    return jsonify(success=True)
+
+@app.post("/clientes/<int:cid>/activar")
+@login_required
+def clientes_activar(cid):
+    # Solo admin puede reactivar
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error="Solo admin puede reactivar"), 403
+    c = Cliente.query.get_or_404(cid)
+    c.is_baja = False
+    c.baja_en = None
+    c.baja_por_email = None
+    # Opcional: al reactivar lo dejas en "Posible cliente"
+    c.estado = "Posible cliente"
+    db.session.commit()
+    return jsonify(success=True)
 
 # -----------------------------------------------------------------------------
 # Modal detalle
 # -----------------------------------------------------------------------------
 
+# ---------- API ----------
+# ---------- API ----------
 @app.get("/api/dashboard")
 @login_required
 def api_dashboard():
     """
-    Devuelve métricas y series para el dashboard en base a tus tablas:
-      - Ingreso = suma de Negocio.licencia (numérico) para negocios con tipo != 'hijo'
-      - Entrados = clientes creados (Cliente.creado_en) en ventana de 12 semanas
-      - Bajas    = clientes con estado 'Cerrado' (si usas otra palabra, cámbiala)
-    Soporta filtro por comercial (email) si llega ?com=correo
+    Dashboard:
+      - ingreso_total: suma de Negocio.licencia (tipo != 'hijo')
+      - entrados_total: nuevos clientes (12 semanas)
+      - bajas_total: clientes con estado = 'Posible cliente' (12 semanas) -> NO entra en tasa
+      - cerrados_total: clientes con estado = 'Cerrado' (12 semanas) -> SÍ entra en tasa
+      - series 12 semanas: ingresos (derivado), entrados, bajas (leads), cerrados
+      - top5 comerciales por ingreso (incluye jefes de grupo aunque no tengan rol 'comercial')
+      - tabla comerciales por grupo
+    Filtro opcional: ?com=<email>
     """
-    comercial_email = (request.args.get("com") or "").strip().lower()
+    com_filter = (request.args.get("com") or "").strip().lower()
 
-    # ---- Filtro de negocios por comercial (si aplica) ----
+    # ---- ventana 12 semanas ----
+    hoy = datetime.utcnow().date()
+    desde = hoy - timedelta(weeks=12)
+    dt_desde = datetime.combine(desde, datetime.min.time())
+
+    # ---- ingreso total (negocios activos, opcional filtro por comercial) ----
     q_neg = Negocio.query.filter(Negocio.tipo != 'hijo')
-    if comercial_email:
-        q_neg = (q_neg.join(ComercialNegocio)
-                      .filter(ComercialNegocio.comercial_email == comercial_email))
+    if com_filter:
+        q_neg = (q_neg.join(ComercialNegocio, isouter=True)
+                     .filter(func.lower(ComercialNegocio.comercial_email) == com_filter))
 
-    # ---- Ingreso total (licencia) ----
-    # Conviértelo a float con manejo de NULL/strings
     ingreso_total = 0.0
     for n in q_neg.all():
         try:
@@ -2472,83 +2653,85 @@ def api_dashboard():
         except Exception:
             pass
 
-    # ---- Ventana temporal (12 semanas) para series de clientes ----
-    hoy = datetime.utcnow().date()
-    hace_12_sem = hoy - timedelta(weeks=12)
+    # ---- clientes entrados (12 semanas) ----
+    q_cli = Cliente.query.filter(Cliente.creado_en >= dt_desde)
+    if com_filter:
+        q_cli = q_cli.filter(func.lower(Cliente.creado_por_email) == com_filter)
 
-    q_cli = Cliente.query.filter(Cliente.creado_en >= hace_12_sem)
-    # si quieres filtrar por comercial, asume relación por email creador (creado_por_email)
-    if comercial_email:
-        q_cli = q_cli.filter(func.lower(Cliente.creado_por_email) == comercial_email)
+    rows_cli = q_cli.with_entities(Cliente.creado_en).all()
+    entrados_total = len(rows_cli)
 
-    # Entrados: total clientes en ventana
-    clientes_entrados = q_cli.count()
+    # Agrupación entrados por semana
+    from collections import defaultdict
+    entrados_by_wk = defaultdict(int)
+    for (dt,) in rows_cli:
+        if dt:
+            entrados_by_wk[dt.strftime('%W')] += 1
 
-    # Bajas: clientes con estado "Cerrado" en ventana
-    bajas_clientes = q_cli.filter(func.lower(Cliente.estado) == "cerrado").count()
+    # ---- LEADS / BAJAS = estado 'Posible cliente' (12 semanas) ----
+    q_leads = q_cli.filter(func.lower(Cliente.estado) == "posible cliente")
+    bajas_total = q_leads.count()
 
-    # Tasa de cierre aproximada
-    tasa_cierre = 0.0
-    denom = max(1, clientes_entrados)  # evita división por 0
-    tasa_cierre = (bajas_clientes / denom) * 100.0
+    rows_leads = q_leads.with_entities(Cliente.creado_en).all()
+    bajas_by_wk = defaultdict(int)
+    for (dt,) in rows_leads:
+        if dt:
+            bajas_by_wk[dt.strftime('%W')] += 1
 
-    # ---- Series por semana (W01..W52) usando SQLite strftime('%W') ----
-    # Ingresos por semana = suma de licencia (estático, sin fecha). Para simular
-    # una evolución, distribuimos “constante” o lo atamos a clientes creados.
-    # Aquí usamos clientes por semana para la línea, y barras para entrados vs bajas.
-    semana_label = func.strftime('%W', Cliente.creado_en)  # semana 00..53
+    # ---- CERRADOS = estado 'Cerrado' (12 semanas) ----
+    q_cerr = q_cli.filter(func.lower(Cliente.estado) == "cerrado")
+    cerrados_total = q_cerr.count()
 
-    por_semana = (
-        q_cli.with_entities(
-            semana_label.label("wk"),
-            func.count(Cliente.id).label("cnt"),
-            func.sum(
-                case(
-                    (func.lower(Cliente.estado) == "cerrado", 1),
-                    else_=0
-                )
-            ).label("cerr")
-            )
-        .group_by("wk")
-        .order_by("wk")
-        .all()
-    )
+    rows_cerr = q_cerr.with_entities(Cliente.creado_en).all()
+    cerrados_by_wk = defaultdict(int)
+    for (dt,) in rows_cerr:
+        if dt:
+            cerrados_by_wk[dt.strftime('%W')] += 1
 
-
-    # Normaliza listas de 12 semanas (si faltan, pon 0)
-    # Construimos un mapping wk->(entrados, bajas)
-    wk_map = { row.wk: (row.cnt or 0, row.cerr or 0) for row in por_semana }
-
-    # Etiquetas de las últimas 12 semanas (desde hace_12_sem a hoy)
-    labels = []
-    entrados = []
-    bajas = []
-    cur = hace_12_sem
+    # ---- etiquetas + series de 12 semanas ----
+    labels, entrados, bajas, cerrados = [], [], [], []
+    cur = desde
     while cur <= hoy:
         wk = cur.strftime('%W')
         labels.append(f"W{wk}")
-        e, b = wk_map.get(wk, (0, 0))
-        entrados.append(int(e))
-        bajas.append(int(b))
+        entrados.append(int(entrados_by_wk.get(wk, 0)))
+        bajas.append(int(bajas_by_wk.get(wk, 0)))       # leads
+        cerrados.append(int(cerrados_by_wk.get(wk, 0))) # cerrados
         cur += timedelta(weeks=1)
 
-    # “Ingreso por semana” (línea) -> lo derivamos de entrados * ticket medio
-    ticket_medio = 0.0
-    try:
-        total_clientes = sum(entrados) or 1
-        ticket_medio = ingreso_total / total_clientes
-    except Exception:
-        ticket_medio = 0.0
-    ingresos_line = [round(x * ticket_medio, 2) for x in entrados]
+    # ---- ingresos por semana (derivado de entrados * ticket medio) ----
+    total_entr = sum(entrados)
+    ticket_medio = (ingreso_total / total_entr) if total_entr else 0.0
+    ingresos_por_semana = [round(x * ticket_medio, 2) for x in entrados]
 
-    # ---- Top 5 comerciales por “ingreso” (suma licencia de sus negocios) ----
-    top_items = []
+    # ---- tasa de cierre: SOLO cerrados cuentan ----
+    tasa_cierre = (cerrados_total / max(1, entrados_total)) * 100.0
+
+    # ---- Top 5 comerciales (incluye líderes de grupo) ----
+    # 1) ids de usuarios que son líderes de algún grupo
+    leader_ids = [gm.user_id for gm in db_users.query(GrupoMiembro)
+                  .filter(GrupoMiembro.es_lider == 1).all()]
+
+    # 2) rol comercial (si existe)
     rol_com = db_users.query(Role).filter_by(name='comercial').first()
-    comerciales = db_users.query(User).filter(User.role == rol_com).all() if rol_com else []
-    for u in comerciales:
+
+    # 3) usuarios con rol comercial OR que sean líderes
+    if rol_com:
+        base_q = db_users.query(User).filter(
+            or_(User.role == rol_com, User.id.in_(leader_ids))
+        )
+    else:
+        base_q = db_users.query(User).filter(User.id.in_(leader_ids))
+
+    # quitar duplicados y asegurarnos de que tengan email
+    usuarios_top = [u for u in base_q.all() if u and u.email]
+
+    top_items = []
+    for u in usuarios_top:
+        uemail = (u.email or '').lower()
         qn = (Negocio.query.filter(Negocio.tipo != 'hijo')
               .join(ComercialNegocio, isouter=True)
-              .filter(ComercialNegocio.comercial_email == u.email))
+              .filter(func.lower(ComercialNegocio.comercial_email) == uemail))
         s = 0.0
         for n in qn.all():
             try:
@@ -2556,23 +2739,28 @@ def api_dashboard():
             except Exception:
                 pass
         top_items.append({
-            "nombre": u.nombre_completo or u.email.split("@")[0],
+            "nombre": u.nombre_completo or (u.email.split("@")[0] if u.email else "—"),
             "email": u.email,
             "ingreso": round(s, 2)
         })
+
+    # ordenar por ingreso y tomar top 5
     top_items.sort(key=lambda x: x["ingreso"], reverse=True)
     top5 = top_items[:5]
 
     # ---- Tabla comerciales por grupo ----
-    # Grupo -> miembros -> ingreso sumado
     filas_grupo = []
     grupos = db_users.query(Grupo).all()
     for g in grupos:
+        # todos los miembros del grupo (incluye líderes)
         miembros = [gm.user for gm in g.miembros if gm.user and gm.user.email]
         for u in miembros:
+            uemail = (u.email or '').lower()
+
+            # ingreso por negocios del comercial
             qn = (Negocio.query.filter(Negocio.tipo != 'hijo')
                   .join(ComercialNegocio, isouter=True)
-                  .filter(ComercialNegocio.comercial_email == u.email))
+                  .filter(func.lower(ComercialNegocio.comercial_email) == uemail))
             ingreso_u = 0.0
             for n in qn.all():
                 try:
@@ -2580,42 +2768,45 @@ def api_dashboard():
                 except Exception:
                     pass
 
-            # Métricas “simples” de clientes del comercial
-            qcu = Cliente.query
-            qcu = qcu.filter(func.lower(Cliente.creado_por_email) == u.email.lower())
-            entr = qcu.count()
-            baj  = qcu.filter(func.lower(Cliente.estado) == "cerrado").count()
-            visitados = entr + baj  # dummy
-            cerrados = baj
-            cierre = f"{(cerrados / max(1, visitados))*100:.1f}%"
+            # entrados / leads / cerrados del comercial (12 semanas)
+            qcu_base = (Cliente.query
+                        .filter(Cliente.creado_en >= dt_desde)
+                        .filter(func.lower(Cliente.creado_por_email) == uemail))
+
+            entr = qcu_base.count()
+            leads_u = qcu_base.filter(func.lower(Cliente.estado) == "posible cliente").count()
+            cerr_u  = qcu_base.filter(func.lower(Cliente.estado) == "cerrado").count()
+
+            # solo cerrados cuentan para cierre
+            visitados = entr + cerr_u
+            cierre_pct = (cerr_u / max(1, visitados)) * 100.0
 
             filas_grupo.append({
-                "comercial": u.nombre_completo or u.email.split("@")[0],
+                "comercial": u.nombre_completo or (u.email.split("@")[0] if u.email else "—"),
                 "grupo": g.nombre,
                 "ingreso": round(ingreso_u, 2),
-                "entrados": entr,
-                "bajas": baj,
-                "visitados": visitados,
-                "cerrados": cerrados,
-                "cierre": cierre
+                "entrados": int(entr),
+                "bajas": int(leads_u),     # leads
+                "cerrados": int(cerr_u),
+                "cierre": f"{cierre_pct:.1f}%"
             })
 
     return jsonify({
         "ingreso_total": round(ingreso_total, 2),
-        "clientes_entrados": clientes_entrados,
-        "bajas_clientes": bajas_clientes,
+        "entrados_total": int(entrados_total),
+        "bajas_total": int(bajas_total),         # leads (posible cliente)
+        "cerrados_total": int(cerrados_total),   # cerrados reales
         "tasa_cierre": round(tasa_cierre, 1),
         "series": {
             "labels": labels,
-            "ingresos_por_semana": ingresos_line,
+            "ingresos_por_semana": ingresos_por_semana,
             "entrados": entrados,
-            "bajas": bajas
+            "bajas": bajas,         # leads
+            "cerrados": cerrados
         },
         "top5": top5,
         "comerciales_por_grupo": filas_grupo
     })
-
-
 
 
 
@@ -2635,11 +2826,12 @@ if __name__ == '__main__':
         print("URI principal:", app.config['SQLALCHEMY_DATABASE_URI'])
         print("BINDS:", app.config.get('SQLALCHEMY_BINDS'))
         # seed_comerciales()
-
+        db.create_all(bind_key='clientes')
         db.create_all()      
 
     with app.app_context():
-        db.create_all()
+
+
         for nombre in ['Posible cliente', 'Cerrado']:
             if not ClienteEstadoCatalogo.query.filter_by(nombre=nombre).first():
                 db.session.add(ClienteEstadoCatalogo(nombre=nombre))
@@ -2647,6 +2839,7 @@ if __name__ == '__main__':
         migrate_sqlite()
         migrate_clientes_autor()
         ensure_tabla_seguimiento()   # 👈 NUEVO
+        ensure_cliente_baja_columns()
 
 
     app.run(debug=True)
