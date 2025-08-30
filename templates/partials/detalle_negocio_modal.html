@@ -121,7 +121,7 @@
                         {% endif %}
                       </div>
                       <div>
-                        <div class="small text-muted">Ciudad</div>
+                        <div class="small text-muted">País</div>
                         <div class="fw-semibold">{{ d.ciudad }}</div>
                       </div>
                       <div>
@@ -132,7 +132,15 @@
                         <div class="small text-muted">Provincia</div>
                         <div class="fw-semibold">{{ d.provincia }}</div>
                       </div>
+
+                      <button type="button" class="btn btn-light btn-sm btn-edit-dir" title="Editar">
+                      <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button type="button" class="btn btn-light btn-sm btn-del-dir" title="Eliminar">
+                      <i class="bi bi-trash"></i>
+                      </button>
                     </div>
+
                     {% if d.descripcion %}
                       <div class="card-footer py-1 small text-muted">
                         {{ d.descripcion }}
@@ -373,15 +381,15 @@
               <input type="text" class="form-control" id="dir-calle2">
             </div>
             <div class="col-md-6">
-              <label class="form-label">Ciudad *</label>
+              <label class="form-label">País *</label>
               <input type="text" class="form-control" id="dir-ciudad" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Código postal</label>
+              <label class="form-label">Numero de la Casa</label>
               <input type="text" class="form-control" id="dir-cp">
             </div>
             <div class="col-md-6">
-              <label class="form-label">País</label>
+              <label class="form-label">Referencia</label>
               <input type="text" class="form-control" id="dir-pais">
             </div>
             <div class="col-md-6">
@@ -589,7 +597,7 @@
             ${d.calle2 ? `<div class="text-muted">${d.calle2}</div>` : ``}
           </div>
           <div>
-            <div class="small text-muted">Ciudad</div>
+            <div class="small text-muted">País</div>
             <div class="fw-semibold">${d.ciudad || ''}</div>
           </div>
           <div>

@@ -117,6 +117,7 @@
                 <option value="">— Seleccionar —</option>
                 {% for e in estados %}
                   <option value="{{ e.id }}">{{ e.nombre }}</option>
+
                 {% endfor %}
               </select>
             </div>
@@ -207,6 +208,74 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Crear Negocio desde Cliente Cerrado -->
+<div class="modal fade" id="modalCrearNegocio" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">Crear negocio a partir del cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <form id="formCrearNegocio">
+        <div class="modal-body">
+          <div class="alert alert-info small mb-3">
+            El cliente fue marcado como <b>Cerrado</b>. Crea el negocio asociado.
+          </div>
+
+          <input type="hidden" id="neg_cliente_id" />
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre del negocio</label>
+              <input type="text" class="form-control" id="neg_nombre" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Propietario</label>
+              <input type="text" class="form-control" id="neg_propietario" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Tel. propietario</label>
+              <input type="text" class="form-control" id="neg_tel_propietario" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Administrador</label>
+              <input type="text" class="form-control" id="neg_admin" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Licencia (opcional)</label>
+              <input type="text" class="form-control" id="neg_licencia" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Moneda licencia</label>
+              <select class="form-select" id="neg_moneda">
+                <option value="USD" selected>USD</option>
+                <option value="CUP">CUP</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Comerciales asignados</label>
+              <!-- múltiple: muestra comerciales + jefes -->
+              <select id="neg_comerciales" class="form-select" multiple></select>
+              <div class="form-text">Puedes seleccionar uno o más.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear negocio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
 {% endblock %}
 
 {% block scripts %}
@@ -215,10 +284,13 @@
 (function () {
   const $ = (s,el=document)=>el.querySelector(s);
 
-  // ----- Nuevo -----
+  // =========================
+  // 1) NUEVO CLIENTE (modal)
+  // =========================
   const fNuevo = $("#formNuevo");
   const spNuevo = $("#spNuevo");
   const modalNuevoEl = $("#modalNuevo");
+
   if (fNuevo && modalNuevoEl && window.bootstrap) {
     const mNuevo = bootstrap.Modal.getOrCreateInstance(modalNuevoEl);
     modalNuevoEl.addEventListener("show.bs.modal", ()=> fNuevo.reset());
@@ -227,17 +299,19 @@
       ev.preventDefault();
       const nombre = (fNuevo.nombre_negocio.value || "").trim();
       if (!nombre) { fNuevo.nombre_negocio.focus(); return; }
-      spNuevo.classList.remove("d-none");
+      spNuevo?.classList?.remove("d-none");
+
       const payload = {
         nombre_negocio: nombre,
-        estado: fNuevo.estado.value || null,
-        observaciones: (fNuevo.observaciones.value || "").trim() || null,
+        estado: fNuevo.estado?.value || null,
+        observaciones: (fNuevo.observaciones?.value || "").trim() || null,
         direccion: {
-          calle: (fNuevo.calle.value || "").trim() || null,
-          municipio: (fNuevo.municipio.value || "").trim() || null,
-          provincia: (fNuevo.provincia.value || "").trim() || null
+          calle: (fNuevo.calle?.value || "").trim() || null,
+          municipio: (fNuevo.municipio?.value || "").trim() || null,
+          provincia: (fNuevo.provincia?.value || "").trim() || null
         }
       };
+
       try {
         const res = await fetch("/api/clientes", {
           method: "POST",
@@ -245,53 +319,60 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || "Error");
+        if (!res.ok || !data.success) throw new Error(data.error || "Error creando cliente");
         mNuevo.hide();
         location.reload();
       } catch(e) {
         alert("No se pudo guardar el cliente.\n" + e.message);
-      } finally { spNuevo.classList.add("d-none"); }
+      } finally { spNuevo?.classList?.add("d-none"); }
     });
   }
 
-  // ----- Ver / Editar -----
+  // =========================
+  // 2) VER / EDITAR CLIENTE
+  // =========================
   const grid = $("#grid");
   const fVer = $("#formVer");
   const spVer = $("#spVer");
   const modalVerEl = $("#modalVer");
+
   if (grid && fVer && modalVerEl && window.bootstrap) {
     const mVer = bootstrap.Modal.getOrCreateInstance(modalVerEl);
 
     grid.addEventListener("click", async (ev)=>{
       const btn = ev.target.closest(".btn-ver");
       const del = ev.target.closest(".btn-eliminar");
+
+      // Abrir modal de edición
       if (btn) {
         const id = btn.dataset.id;
         try {
           const res = await fetch(`/api/clientes/${id}`);
           const data = await res.json();
-          if (!res.ok || !data.success) throw new Error();
-          // Cargar datos
+          if (!res.ok || !data.success) throw new Error("No OK");
+
           fVer.id.value = data.item.id;
           fVer.nombre_negocio.value = data.item.nombre_negocio || "";
-          fVer.estado.value = data.item.estado || "";
+          if (fVer.estado) fVer.estado.value = data.item.estado || "";
           const dir = data.item.direccion || {};
-          fVer.calle.value = dir.calle || "";
-          fVer.municipio.value = dir.municipio || "";
-          fVer.provincia.value = dir.provincia || "";
-          fVer.observaciones.value = data.item.observaciones || "";
+          if (fVer.calle)     fVer.calle.value = dir.calle || "";
+          if (fVer.municipio) fVer.municipio.value = dir.municipio || "";
+          if (fVer.provincia) fVer.provincia.value = dir.provincia || "";
+          if (fVer.observaciones) fVer.observaciones.value = data.item.observaciones || "";
           mVer.show();
         } catch(e) {
           alert("No se pudo cargar el cliente.");
         }
       }
+
+      // Eliminar
       if (del) {
         const id = del.dataset.id;
         if (!confirm("¿Eliminar este cliente?")) return;
         try {
           const res = await fetch(`/api/clientes/${id}`, { method:"DELETE" });
           const data = await res.json();
-          if (!res.ok || !data.success) throw new Error();
+          if (!res.ok || !data.success) throw new Error("No OK");
           location.reload();
         } catch(e) {
           alert("No se pudo eliminar.");
@@ -299,22 +380,25 @@
       }
     });
 
+    // Guardar edición
     fVer.addEventListener("submit", async (ev)=>{
       ev.preventDefault();
       const id = fVer.id.value;
       const nombre = (fVer.nombre_negocio.value || "").trim();
       if (!nombre) { fVer.nombre_negocio.focus(); return; }
-      spVer.classList.remove("d-none");
+      spVer?.classList?.remove("d-none");
+
       const payload = {
         nombre_negocio: nombre,
-        estado: fVer.estado.value || null,
-        observaciones: (fVer.observaciones.value || "").trim() || null,
+        estado: fVer.estado?.value || null,
+        observaciones: (fVer.observaciones?.value || "").trim() || null,
         direccion: {
-          calle: (fVer.calle.value || "").trim() || null,
-          municipio: (fVer.municipio.value || "").trim() || null,
-          provincia: (fVer.provincia.value || "").trim() || null
+          calle: (fVer.calle?.value || "").trim() || null,
+          municipio: (fVer.municipio?.value || "").trim() || null,
+          provincia: (fVer.provincia?.value || "").trim() || null
         }
       };
+
       try {
         const res = await fetch(`/api/clientes/${id}`, {
           method: "PUT",
@@ -322,14 +406,175 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error();
+        if (!res.ok || !data.success) throw new Error("No OK");
         bootstrap.Modal.getInstance(modalVerEl).hide();
         location.reload();
       } catch(e) {
         alert("No se pudieron guardar los cambios.");
-      } finally { spVer.classList.add("d-none"); }
+      } finally { spVer?.classList?.add("d-none"); }
     });
   }
+
+  // =======================================================
+  // 3) CUANDO ESTADO CAMBIA A "Cerrado" => GUARDAR + MODAL
+  // =======================================================
+  function findClienteIdFrom(selectEl){
+    const direct = selectEl.getAttribute('data-cliente-id');
+    if (direct) return parseInt(direct, 10);
+    const host = selectEl.closest('[data-cliente-id]');
+    if (host) return parseInt(host.getAttribute('data-cliente-id'), 10);
+    const hidden = document.querySelector('input[name="cliente_id"]');
+    if (hidden && hidden.value) return parseInt(hidden.value, 10);
+    // si estás dentro del form de edición:
+    const idInput = document.querySelector('#formVer input[name="id"]');
+    if (idInput && idInput.value) return parseInt(idInput.value, 10);
+    return null;
+  }
+
+  async function guardarEstadoCliente(id, estado){
+    const r = await fetch(`/api/clientes/${id}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({estado})
+    });
+    if(!r.ok){
+      console.error('PUT estado no OK', await r.text());
+      return false;
+    }
+    return true;
+  }
+
+  async function getCliente(id){
+    const r = await fetch(`/api/clientes/${id}`);
+    if(!r.ok) return null;
+    const j = await r.json();
+    return j.item || null;
+  }
+
+  async function cargarComerciales(){
+    // trae comerciales + jefes
+    const sel = document.getElementById('neg_comerciales');
+    if (!sel) return;
+    sel.innerHTML = '<option disabled>Cargando...</option>';
+    try{
+      const r = await fetch('/api/comerciales_list');
+      const j = await r.json();
+      sel.innerHTML = '';
+      (j.items || []).forEach(u=>{
+        const o = document.createElement('option');
+        o.value = u.email;
+        o.textContent = `${u.nombre} — ${u.email}${u.es_jefe ? ' (Jefe)' : ''}`;
+        sel.appendChild(o);
+      });
+    }catch(e){
+      console.error(e);
+      sel.innerHTML = '';
+    }
+  }
+
+  async function precargarModalDesdeCliente(c){
+    $('#neg_cliente_id').value = c.id;
+    $('#neg_nombre').value = c.nombre_negocio || '';
+    $('#neg_propietario').value = (c.contacto && c.contacto.nombre) ? c.contacto.nombre : '';
+    $('#neg_tel_propietario').value = (c.contacto && c.contacto.telefono) ? c.contacto.telefono : '';
+    $('#neg_admin').value = '';
+    $('#neg_licencia').value = '';
+    $('#neg_moneda').value = 'USD';
+    await cargarComerciales();
+  }
+
+  function abrirModalNegocio(){
+    const el = $('#modalCrearNegocio');
+    if (!el) return;
+    bootstrap.Modal.getOrCreateInstance(el).show();
+  }
+
+  document.addEventListener('change', async (ev)=>{
+    const el = ev.target;
+    if (!el.matches('select#cliente-estado, select[data-rol="estado-cliente"], select[name="estado"]')) return;
+
+    const nuevo = (el.value || '').trim().toLowerCase();
+    if (nuevo !== 'cerrado') return;
+
+    const cid = findClienteIdFrom(el);
+    if (!cid){
+      console.warn('No se encontró cliente_id. Abriendo modal vacío.');
+      await cargarComerciales();
+      abrirModalNegocio();
+      return;
+    }
+
+    // 1) guarda estado
+    const ok = await guardarEstadoCliente(cid, 'Cerrado');
+    if (!ok){ alert('No se pudo guardar el estado del cliente.'); return; }
+
+    // 2) precarga cliente y abre modal
+    const cli = await getCliente(cid);
+    if (cli) await precargarModalDesdeCliente(cli);
+    else await cargarComerciales();
+    abrirModalNegocio();
+  });
+
+  // ======================================
+  // 4) CREAR NEGOCIO (sin dirección) + asignar comerciales
+  // ======================================
+  async function setComerciales(negocioId, emails){
+    if(!emails || !emails.length) return;
+    const r = await fetch(`/negocio/${negocioId}/comerciales`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emails })
+    });
+    if(!r.ok){
+      console.warn('Falló asignación de comerciales', await r.text());
+    }
+  }
+
+  async function submitNegocio(e){
+    e.preventDefault();
+    const nombre = $('#neg_nombre')?.value.trim();
+    const propietario = $('#neg_propietario')?.value.trim();
+    if(!nombre){ alert('El nombre del negocio es obligatorio.'); return; }
+    if(!propietario){ alert('El propietario es obligatorio.'); return; }
+
+    const payload = {
+      nombre,
+      propietario,
+      admin: $('#neg_admin')?.value.trim() || '',
+      tel_propietario: $('#neg_tel_propietario')?.value.trim() || '',
+      direccion: '', // ya no se usa en el modal
+      licencia: $('#neg_licencia')?.value.trim() || '',
+      negocios_hijos: []
+    };
+
+    const emails = Array.from($('#neg_comerciales')?.selectedOptions || []).map(o=>o.value);
+
+    try{
+      const r = await fetch('/api/agregar_negocio', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok || j.error){
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      // asignar comerciales
+      await setComerciales(j.id, emails);
+
+      // cerrar modal y redirigir
+      bootstrap.Modal.getInstance($('#modalCrearNegocio'))?.hide();
+      alert('Negocio creado correctamente.');
+      window.location.href = '/inicio';
+    }catch(e){
+      console.error(e);
+      alert('No se pudo crear el negocio: ' + e.message);
+    }
+  }
+
+  $('#formCrearNegocio')?.addEventListener('submit', submitNegocio);
 })();
 </script>
+
+
 {% endblock %}

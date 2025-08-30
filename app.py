@@ -2613,6 +2613,36 @@ def clientes_activar(cid):
     db.session.commit()
     return jsonify(success=True)
 
+@app.get("/api/comerciales_list")
+@login_required
+def api_comerciales_list():
+    """
+    Devuelve todos los usuarios con rol 'comercial' o 'jefe_grupo'.
+    Formato: [{email, nombre, es_jefe}]
+    """
+    rol_com = db_users.query(Role).filter_by(name='comercial').first()
+    rol_jef = db_users.query(Role).filter_by(name='jefe_grupo').first()
+
+    q = db_users.query(User)
+    if rol_com and rol_jef:
+        q = q.filter(User.role_id.in_([rol_com.id, rol_jef.id]))
+    elif rol_com:
+        q = q.filter(User.role_id == rol_com.id)
+    elif rol_jef:
+        q = q.filter(User.role_id == rol_jef.id)
+    else:
+        return jsonify(items=[])
+
+    items = []
+    for u in q.order_by(User.nombre_completo, User.email).all():
+        items.append({
+            "email": u.email,
+            "nombre": (u.nombre_completo or u.email.split("@")[0]),
+            "es_jefe": bool(u.role and u.role.name == 'jefe_grupo'),
+        })
+    return jsonify(items=items)
+
+
 # -----------------------------------------------------------------------------
 # Modal detalle
 # -----------------------------------------------------------------------------
