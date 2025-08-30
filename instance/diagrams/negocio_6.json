@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "fill": "#fcd34d",
+      "h": 120,
+      "id": "n_1",
+      "label": "almacen punto de venta",
+      "type": "diamond",
+      "w": 120,
+      "x": 217.79574583122644,
+      "y": 156.3126033807722
+    },
+    {
+      "fill": "#fda4af",
+      "h": 100,
+      "id": "n_2",
+      "label": "almacen",
+      "type": "circle",
+      "w": 100,
+      "x": 491.8149211559911,
+      "y": 10.771763717777418
+    },
+    {
+      "fill": "#93c5fd",
+      "h": 70,
+      "id": "n_6",
+      "label": "punto de venta",
+      "type": "rect",
+      "w": 140,
+      "x": 490.8377694401462,
+      "y": 287.94198361116395
+    }
+  ],
+  "edges": [
+    {
+      "from": "n_2",
+      "id": "e_3",
+      "to": "n_1"
+    },
+    {
+      "from": "n_1",
+      "id": "e_7",
+      "to": "n_6"
+    }
+  ],
+  "idSeq": 8,
+  "connectMode": false,
+  "connectFrom": null
+}

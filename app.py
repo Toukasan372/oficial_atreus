@@ -1,4 +1,9 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, send_file
+from flask import (
+    Flask, jsonify, request, render_template, url_for,
+    send_from_directory, abort, session   # session solo si quieres verificar login simple
+)
+from flask import send_file  # <— agrega esto
+from io import BytesIO       # si no lo tienes ya
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from io import BytesIO
@@ -52,6 +57,27 @@ engine_users = create_engine(f'sqlite:///{user_db_path}', connect_args={"check_s
 db_users = scoped_session(sessionmaker(bind=engine_users))
 BaseUsers = declarative_base()
 
+
+
+app.config.setdefault("DIAGRAMS_DIR", os.path.join(app.instance_path, "diagrams"))
+os.makedirs(app.config["DIAGRAMS_DIR"], exist_ok=True)
+
+def _slug(s):
+    s = (s or "").strip().lower()
+    s = re.sub(r"[^a-z0-9\- ]+", "", s)
+    s = re.sub(r"\s+", "-", s)
+    return s or "diagrama"
+
+def _diag_dir(negocio_id):
+    d = os.path.join(DIAG_BASE, str(negocio_id))
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _diagram_filepath(negocio_id: int) -> str:
+    # un archivo por negocio
+    safe_name = f"negocio_{int(negocio_id)}.json"
+    return os.path.join(app.config["DIAGRAMS_DIR"], safe_name)
 # -----------------------------------------------------------------------------
 # Filtros Jinja
 # -----------------------------------------------------------------------------
@@ -949,8 +975,77 @@ Negocio.contactos = db.relationship(
 )
 
 
+# Página del editor (abre el canvas con tu UI)
+@app.get("/negocio/<int:negocio_id>/diagramador")
+@login_required
+def diagramador_negocio(negocio_id):
+    # Renderizamos el HTML del editor (lo devolvemos “tal cual”)
+    # Si prefieres un template Jinja, usa render_template con variables.
+    editor_html = render_template("diagramador.html", negocio_id=negocio_id)
+    return editor_html
+
+def _diagram_filepath(negocio_id: int) -> str:
+    return os.path.join(app.config["DIAGRAMS_DIR"], f"negocio_{int(negocio_id)}.json")
 
 
+# Guardar diagrama (espera JSON con 'data' = objeto del diagrama)
+@app.post("/api/negocios/<int:negocio_id>/diagrama")
+def api_diagrama_guardar(negocio_id):
+    # ---- si quieres checkear que haya sesión, descomenta:
+    # if not session.get("user_id"):
+    #     return jsonify(success=False, error="AUTH_REQUIRED"), 401
+
+    try:
+        payload = request.get_json(silent=True) or {}
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return jsonify(success=False, error="Formato inválido: 'data' debe ser objeto"), 400
+
+        path = _diagram_filepath(negocio_id)
+        # guarda bonito
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        size = os.path.getsize(path)
+        return jsonify(success=True, negocio_id=negocio_id, bytes=size, file=os.path.basename(path))
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+
+@app.route("/api/negocios/<int:negocio_id>/diagrama", methods=["GET", "POST"])
+def api_negocio_diagrama(negocio_id):
+    """
+    GET  -> devuelve {success, data:{}}
+    POST -> guarda payload.data (objeto) en JSON y devuelve {success}
+    """
+    try:
+        path = _diagram_filepath(negocio_id)
+
+        if request.method == "GET":
+            if not os.path.exists(path):
+                return jsonify(success=True, negocio_id=negocio_id, data={})
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return jsonify(success=True, negocio_id=negocio_id, data=data)
+
+        # POST
+        payload = request.get_json(silent=True) or {}
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return jsonify(success=False, error="Formato inválido: 'data' debe ser objeto"), 400
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        return jsonify(success=True, negocio_id=negocio_id)
+
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+@app.get("/negocio/<int:negocio_id>/diagrama/editor")
+def diagram_editor_view(negocio_id):
+    # si quieres exigir sesión, aquí también puedes chequear session["user_id"]
+    return render_template("diagramador.html", negocio_id=negocio_id)
 # -----------------------------------------------------------------------------
 # Helpers SQLite (migración mínima)
 # -----------------------------------------------------------------------------

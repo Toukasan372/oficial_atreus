@@ -85,6 +85,12 @@
             Seguimiento
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-diagrama" data-bs-toggle="tab" data-bs-target="#pane-diagrama" type="button" role="tab">
+            Diagrama
+          </button>
+        </li>
+
       </ul>
 
       <div class="tab-content pt-3">
@@ -280,6 +286,20 @@
 
 
 
+<div class="tab-pane fade" id="pane-diagrama" role="tabpanel">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <div class="fw-semibold">Diagrama del negocio</div>
+      <div class="text-muted small">Crea y gestiona diagramas asociados a este negocio.</div>
+    </div>
+    <a class="btn btn-primary"
+   href="{{ url_for('diagram_editor_view', negocio_id=negocio.id) }}"
+   target="_blank" rel="noopener">
+  ✨ Crear / editar diagrama
+    </a>
+  </div>
+  </div>
+</div>
 
 
 
