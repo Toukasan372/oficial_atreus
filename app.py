@@ -1,9 +1,8 @@
 from flask import (
     Flask, jsonify, request, render_template, url_for,
-    send_from_directory, abort, session   # session solo si quieres verificar login simple
+    send_from_directory, send_file, abort, session   # session solo si quieres verificar login simple
 )
-from flask import send_file  # <— agrega esto
-from io import BytesIO       # si no lo tienes ya
+from flask import Flask, redirect, flash # <— agrega esto      # si no lo tienes ya
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from io import BytesIO
