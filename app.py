@@ -151,6 +151,22 @@ def login_required(f):
     return decorated
 # --- GRUPOS (en usuarios.db) ---
 
+from flask_login import current_user
+from flask import abort
+
+def user_role():
+    try:
+        return (current_user.role.name or '').lower()
+    except Exception:
+        return ''
+
+def is_asistente():
+    return user_role() == 'asistente'
+
+def can_edit_negocio():
+    # Solo estos pueden editar
+    return user_role() in {'admin', 'jefe_grupo', 'comercial'}
+
 
 from sqlalchemy import select
 
@@ -166,8 +182,12 @@ def negocios_visibles_para_usuario():
         return q.filter(False)  # vacío
 
     # 1) Admin ve todo
-    if rol == 'admin':
+
+
+    if rol in ("admin", "asistente"):
         return q
+
+
 
     # 2) Si es "comercial": solo los suyos
     if rol == 'comercial':
@@ -496,8 +516,9 @@ def query_negocios_visibles_para_usuario(base_query=None):
     nombre_usuario = (user_obj.nombre_completo or '').strip() if user_obj else None
 
     # Admin
-    if role == 'admin':
+    if role in ('admin', 'asistente'):
         return base_query
+
 
     # Comercial
     if role == 'comercial':
@@ -1102,7 +1123,10 @@ Negocio.seguimientos = db.relationship(
 # CLIENTES: lista, crear, detalle
 # -----------------------------
 @app.get('/clientes', endpoint='clientes_lista')
+
 def clientes_lista():
+    if session.get('user_role') == 'asistente':
+        flash('Acceso denegado.', 'danger')
     """
     Lista paginada de clientes según visibilidad:
       - admin: todos
@@ -1395,6 +1419,8 @@ def clientes_actualizar(cid):
 # Crear cliente (AJAX desde el modal)
 @app.route("/clientes/nuevo", methods=["POST"])
 def clientes_nuevo():
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     data = request.get_json(force=True) or {}
 
     # ------- cliente -------
@@ -1437,6 +1463,8 @@ def clientes_nuevo():
 
 @app.route('/clientes/<int:id>/eliminar', methods=['POST'])
 def clientes_eliminar(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     c = Cliente.query.get_or_404(id)
 
     # capturar el autor original si existe, para atribuir la baja
@@ -1674,7 +1702,7 @@ def panel_admin():
 @app.route('/crear_roles')
 def crear_roles():
     crear_roles_iniciales()
-    return "Roles iniciales creados (admin, comercial, asistente, usuario)."
+    return "Roles iniciales creados (admin, comercial, usuario)."
 
 # -----------------------------------------------------------------------------
 # Negocios
@@ -1840,6 +1868,8 @@ def eliminar_contacto(cid):
 
 @app.route("/agregar", methods=["GET", "POST"])
 def agregar_negocio():
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     if request.method == "GET":
         casas_matriz = Negocio.query.filter_by(tipo='casa_matriz').order_by(Negocio.nombre).all()
         # comerciales desde usuarios.db con rol comercial
@@ -1938,7 +1968,10 @@ def detalle_negocio_modal(id):
 
 # ---------- Asignar proveedor a un negocio ----------
 @app.route('/negocio/<int:id>/set_proveedor', methods=['POST'])
+@login_required
 def set_proveedor(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio = Negocio.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form
     prov_id = data.get('proveedor_id')
@@ -1954,7 +1987,10 @@ def set_proveedor(id):
 
 # ---------- Activar/Desactivar un módulo para un negocio ----------
 @app.route('/negocio/<int:id>/set_modulo', methods=['POST'])
+@login_required
 def set_modulo(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio = Negocio.query.get_or_404(id)
     data = request.get_json(force=True)
     modulo_id = int(data.get('modulo_id'))
@@ -2026,7 +2062,10 @@ def admin_modulo():
 # Direcciones (endpoints usados por el modal)
 # -----------------------------------------------------------------------------
 @app.route("/negocio/<int:id>/direccion", methods=["POST"])
+@login_required
 def agregar_direccion(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio = Negocio.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form
     try:
@@ -2117,7 +2156,10 @@ def actualizar_direccion_simple(dir_id):
     return jsonify({"success": True})
 
 @app.route("/direccion/<int:dir_id>", methods=["DELETE"])
+@login_required
 def eliminar_direccion_simple(dir_id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     d = Direccion.query.get_or_404(dir_id)
     db.session.delete(d)
     db.session.commit()
@@ -2127,6 +2169,8 @@ def eliminar_direccion_simple(dir_id):
 @app.post('/eliminar_negocio/<int:negocio_id>')
 @login_required
 def eliminar_negocio(negocio_id):
+    if session.get('user_role') != 'admin':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio = Negocio.query.get_or_404(negocio_id)
 
     # comerciales asociados (para atribuir la baja a sus comerciales)
@@ -2235,6 +2279,8 @@ def actualizar_comerciales(negocio_id):
 @app.route('/facturar_comercial')
 @login_required
 def facturar_comercial():
+    if session.get('user_role') != 'admin':
+        return jsonify(success=False, error='Acceso denegado'), 403
     usuario = db_users.query(User).get(session['user_id'])
     if not usuario:
         flash("Usuario no encontrado.", "danger")
@@ -2252,6 +2298,8 @@ def facturar_comercial():
 
 @app.route('/liquidar_negocio', methods=['POST'])
 def liquidar_negocio():
+    if session.get('user_role') != 'admin':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio_id = request.form.get('negocio_id')
     metodo = request.form.get('metodo')
     monto = request.form.get('monto_total')
@@ -2274,6 +2322,8 @@ def liquidar_negocio():
 
 @app.route('/generar_todas_facturas')
 def generar_todas_facturas():
+    if session.get('user_role') != 'admin':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocios = Negocio.query.filter(Negocio.tipo != 'hijo').all()
     template_path = os.path.join('facturas', 'plantilla_factura.pdf')
     zip_buffer = BytesIO()
@@ -2355,6 +2405,8 @@ def generar_todas_facturas():
 
 @app.route("/clientes/<int:id>/informe")
 def clientes_generar_informe(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     c = Cliente.query.get_or_404(id)
 
     # ---- Estado (string o relación) ----
@@ -2588,6 +2640,8 @@ def perfil():
 # -----------------------------------------------------------------------------
 @app.route('/negocio/<int:id>/editar_campos', methods=['POST'])
 def editar_campos(id):
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     negocio = Negocio.query.get_or_404(id)
     data = request.get_json(force=True) or {}
     for campo in ['nombre', 'propietario', 'admin', 'direccion', 'observacion']:
@@ -2598,6 +2652,8 @@ def editar_campos(id):
 
 @app.route('/api/agregar_negocio', methods=['POST'])
 def api_agregar_negocio():
+    if session.get('user_role') == 'asistente':
+        return jsonify(success=False, error='Acceso denegado'), 403
     if not request.is_json:
         return jsonify({"error": "Debe enviar datos en formato JSON"}), 400
     data = request.get_json()
@@ -2669,6 +2725,8 @@ def log_baja_negocio(negocio, comerciales_emails: list, eliminado_por: str):
 @app.get("/dashboard", endpoint="dashboard")
 @login_required
 def dashboardw():
+    if session.get('user_role') == 'asistente':
+        flash('Acceso denegado.', 'danger')
     # Comerciales para el filtro
     rol_com = db_users.query(Role).filter_by(name='comercial').first()
     comerciales = (db_users.query(User)

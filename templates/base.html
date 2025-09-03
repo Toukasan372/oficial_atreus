@@ -53,15 +53,14 @@
 
   <div class="sidebar">
     <h4>Atreus</h4>
-
-    <a class="nav-link" href="{{ url_for('dashboard') }}">📊 Dashboard</a>
-
+    {% if session.get('user_role') == 'admin' %}
+      <a class="nav-link" href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+    {% endif %}
 
     <a href="{{ url_for('inicio') }}"><i class="bi bi-house"></i> Negocios</a>
 
-    {% if session.get('user_role') != 'asistente' %}
       <a href="{{ url_for('conectividad') }}"><i class="bi bi-wifi"></i> Conectividad</a>
-
+    {% if session.get('user_role') == 'admin' %}
       <a class="nav-link" href="{{ url_for('clientes_lista') }}">
         <i class="bi bi-people"></i> Clientes
       </a>

@@ -34,13 +34,16 @@
     Comercial{% if negocio.comerciales|length != 1 %}es{% endif %}:
     {{ negocio.comerciales|comerciales_str }}
   </span>
+{% if session.get('user_role') != 'asistente' %}
   <button type="button"
           class="btn btn-light btn-sm p-1 border"
           id="btn-edit-comerciales"
           title="Editar comerciales">
     <i class="bi bi-pencil"></i>
   </button>
+{% endif %}
 
+{% if session.get('user_role') != 'asistente' %}
   <!-- Licencia -->
   <span class="badge text-bg-success" id="badge-licencia">
     Licencia: {{ negocio.licencia or '—' }} {{ negocio.moneda_licencia or 'USD' }}
@@ -51,7 +54,7 @@
           title="Editar licencia">
     <i class="bi bi-pencil"></i>
   </button>
-
+{% endif %}
   <!-- Conectividad (solo visual) -->
   <span class="badge text-bg-info">
     Conectividad: {{ negocio.conectividad or 0 }} CUP
@@ -110,9 +113,11 @@
             <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <label class="form-label m-0">Dirección</label>
-                <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-direccion">
-                  <i class="bi bi-plus-lg"></i> Agregar
-                </button>
+                {% if session.get('user_role') != 'asistente' %}
+                  <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-direccion">
+                    <i class="bi bi-plus-lg"></i> Agregar
+                  </button>
+                {% endif %}
               </div>
 
               <div id="lista-direcciones" class="d-flex flex-column gap-2">
@@ -174,9 +179,11 @@
 <div class="tab-pane fade" id="pane-contacto" role="tabpanel">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <label class="form-label m-0">Contactos</label>
-    <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-contacto">
+    {% if session.get('user_role') != 'asistente' %}
+      <button class="btn btn-outline-primary btn-sm" type="button" id="btn-add-contacto">
       <i class="bi bi-plus-lg"></i> Agregar
-    </button>
+      </button>
+     {% endif %}
   </div>
 
   <!-- SOLO la lista aquí -->
@@ -218,13 +225,15 @@
   <div class="d-flex justify-content-between align-items-center mb-2">
     <label class="form-label m-0">Seguimientos</label>
     <!-- Botón DENTRO del modal de negocio -->
-    <button type="button"
-        class="btn btn-outline-primary btn-sm"
-        data-bs-toggle="modal"
-        data-bs-target="#modalSeguimiento"
-        id="btn-open-seg">
-  <i class="bi bi-clipboard-plus"></i> Añadir seguimiento
-</button>
+    {% if session.get('user_role') != 'asistente' %}
+      <button type="button"
+          class="btn btn-outline-primary btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#modalSeguimiento"
+          id="btn-open-seg">
+        <i class="bi bi-clipboard-plus"></i> Añadir seguimiento
+      </button>
+    {% endif %}
   </div>
 
   <!-- Lista de seguimientos -->
@@ -285,93 +294,95 @@
 
 
 
-
-<div class="tab-pane fade" id="pane-diagrama" role="tabpanel">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <div>
-      <div class="fw-semibold">Diagrama del negocio</div>
-      <div class="text-muted small">Crea y gestiona diagramas asociados a este negocio.</div>
-    </div>
-    <a class="btn btn-primary"
-   href="{{ url_for('diagram_editor_view', negocio_id=negocio.id) }}"
-   target="_blank" rel="noopener">
-  ✨ Crear / editar diagrama
-    </a>
-  </div>
-  </div>
-</div>
-
-
-
-
-
-<div class="modal-footer">
-  <input type="hidden" name="id" value="{{ negocio.id }}">
-  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-  <button type="submit" class="btn btn-primary">Guardar cambios</button>
-</form>
-</div>
-
-
-   <form action="{{ url_for('eliminar_negocio', negocio_id=negocio.id) }}" method="POST" style="display:inline;">
-    <button type="submit" class="btn btn-danger"
-            onclick="return confirm('¿Seguro que deseas eliminar este negocio?');">
-      Eliminar
-    </button>
-  </form>
-</div>
-
-<!-- Modal Agregar/Editar Contacto (FUERA de #lista-contactos) -->
-<div class="modal fade" id="contactoModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="contactoModalTitle">Agregar contacto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+{% if session.get('user_role') != 'asistente' %}
+  <div class="tab-pane fade" id="pane-diagrama" role="tabpanel">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="fw-semibold">Diagrama del negocio</div>
+        <div class="text-muted small">Crea y gestiona diagramas asociados a este negocio.</div>
       </div>
-      <div class="modal-body">
-        <form id="form-contacto">
-          <input type="hidden" id="ct-id" value="">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Nombre *</label>
-              <input type="text" class="form-control" id="ct-nombre" required>
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label">Cargo</label>
-              <input type="text" class="form-control" id="ct-cargo">
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label">Teléfono</label>
-              <input type="text" class="form-control" id="ct-telefono">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" id="ct-email">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Notas</label>
-              <textarea class="form-control" id="ct-notas" rows="2"></textarea>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="ct-principal">
-                <label class="form-check-label" for="ct-principal">
-                  Marcar como contacto principal
-                </label>
+      <a class="btn btn-primary"
+     href="{{ url_for('diagram_editor_view', negocio_id=negocio.id) }}"
+     target="_blank" rel="noopener">
+    ✨ Crear / editar diagrama
+      </a>
+    </div>
+    </div>
+  </div>
+{% endif %}
+
+
+
+{% if session.get('user_role') != 'asistente' %}
+  <div class="modal-footer">
+    <input type="hidden" name="id" value="{{ negocio.id }}">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+  </form>
+  </div>
+
+
+     <form action="{{ url_for('eliminar_negocio', negocio_id=negocio.id) }}" method="POST" style="display:inline;">
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('¿Seguro que deseas eliminar este negocio?');">
+        Eliminar
+      </button>
+    </form>
+  </div>
+{% endif %}
+
+{% if session.get('user_role') != 'asistente' %}
+  <!-- Modal Agregar/Editar Contacto (FUERA de #lista-contactos) -->
+  <div class="modal fade" id="contactoModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="contactoModalTitle">Agregar contacto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-contacto">
+            <input type="hidden" id="ct-id" value="">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Nombre *</label>
+                <input type="text" class="form-control" id="ct-nombre" required>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Cargo</label>
+                <input type="text" class="form-control" id="ct-cargo">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" id="ct-telefono">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="ct-email">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Notas</label>
+                <textarea class="form-control" id="ct-notas" rows="2"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="ct-principal">
+                  <label class="form-check-label" for="ct-principal">
+                    Marcar como contacto principal
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" id="btn-guardar-contacto">Guardar</button>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" id="btn-guardar-contacto">Guardar</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
-
+{% endif %}
 
 
 
@@ -379,134 +390,135 @@
        
 
 
-
-<!-- Modal Agregar/Editar Dirección (aparece por encima) -->
-<div class="modal fade" id="direccionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="direccionModalTitle">Agregar dirección</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body">
-        <form id="form-direccion">
-          <input type="hidden" id="dir-id" value="">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Calle principal *</label>
-              <input type="text" class="form-control" id="dir-calle" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Calle secundaria</label>
-              <input type="text" class="form-control" id="dir-calle2">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">País *</label>
-              <input type="text" class="form-control" id="dir-ciudad" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Numero de la Casa</label>
-              <input type="text" class="form-control" id="dir-cp">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Referencia</label>
-              <input type="text" class="form-control" id="dir-pais">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Provincia *</label>
-              <input type="text" class="form-control" id="dir-provincia" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Municipio *</label>
-              <input type="text" class="form-control" id="dir-municipio" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Descripción</label>
-              <textarea class="form-control" id="dir-descripcion" rows="2"></textarea>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="dir-principal">
-                <label class="form-check-label" for="dir-principal">
-                  Marcar como dirección principal
-                </label>
+{% if session.get('user_role') != 'asistente' %}
+  <!-- Modal Agregar/Editar Dirección (aparece por encima) -->
+  <div class="modal fade" id="direccionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="direccionModalTitle">Agregar dirección</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-direccion">
+            <input type="hidden" id="dir-id" value="">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Calle principal *</label>
+                <input type="text" class="form-control" id="dir-calle" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Calle secundaria</label>
+                <input type="text" class="form-control" id="dir-calle2">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">País *</label>
+                <input type="text" class="form-control" id="dir-ciudad" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Numero de la Casa</label>
+                <input type="text" class="form-control" id="dir-cp">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Referencia</label>
+                <input type="text" class="form-control" id="dir-pais">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Provincia *</label>
+                <input type="text" class="form-control" id="dir-provincia" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Municipio *</label>
+                <input type="text" class="form-control" id="dir-municipio" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" id="dir-descripcion" rows="2"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="dir-principal">
+                  <label class="form-check-label" for="dir-principal">
+                    Marcar como dirección principal
+                  </label>
+                </div>
               </div>
             </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" id="btn-guardar-dir">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% if session.get('user_role') != 'asistente' %}
+  <!-- Modal: Editar licencia -->
+  <div class="modal fade" id="editLicenciaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Editar licencia</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Monto</label>
+            <input type="number" step="0.01" class="form-control" id="inp-licencia"
+                   value="{{ negocio.licencia or '' }}">
           </div>
-        </form>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" id="btn-guardar-dir">Guardar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- Modal: Editar licencia -->
-<div class="modal fade" id="editLicenciaModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Editar licencia</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-2">
-          <label class="form-label">Monto</label>
-          <input type="number" step="0.01" class="form-control" id="inp-licencia"
-                 value="{{ negocio.licencia or '' }}">
+          <div>
+            <label class="form-label">Moneda</label>
+            <select id="inp-moneda-licencia" class="form-select">
+              {% set m = negocio.moneda_licencia or 'USD' %}
+              <option value="USD" {{ 'selected' if m=='USD' else '' }}>USD</option>
+              <option value="EUR" {{ 'selected' if m=='EUR' else '' }}>EUR</option>
+              <option value="CUP" {{ 'selected' if m=='CUP' else '' }}>CUP</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="form-label">Moneda</label>
-          <select id="inp-moneda-licencia" class="form-select">
-            {% set m = negocio.moneda_licencia or 'USD' %}
-            <option value="USD" {{ 'selected' if m=='USD' else '' }}>USD</option>
-            <option value="EUR" {{ 'selected' if m=='EUR' else '' }}>EUR</option>
-            <option value="CUP" {{ 'selected' if m=='CUP' else '' }}>CUP</option>
-          </select>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" id="btn-save-licencia">Guardar</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" id="btn-save-licencia">Guardar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Editar comerciales -->
+  <div class="modal fade" id="editComercialesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Editar comerciales</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-2">Selecciona uno o varios comerciales.</p>
+          <select id="sel-comerciales" class="form-select" multiple size="6">
+    {% for u in comerciales_usuarios %}
+      {% set ya_esta = (u.email in correos_existentes) or (u.nombre_completo in nombres_existentes) %}
+      <option value="{{ u.email }}" {{ 'selected' if ya_esta else '' }}>
+        {{ u.nombre_completo or u.email.split('@')[0] }} — {{ u.email }}
+      </option>
+    {% endfor %}
+  </select>
+
+
+          <div class="form-text">preciona ctrl y seleciona mas de uno.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" id="btn-save-comerciales">Guardar</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
-
-<!-- Modal: Editar comerciales -->
-<div class="modal fade" id="editComercialesModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Editar comerciales</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="small text-muted mb-2">Selecciona uno o varios comerciales.</p>
-        <select id="sel-comerciales" class="form-select" multiple size="6">
-  {% for u in comerciales_usuarios %}
-    {% set ya_esta = (u.email in correos_existentes) or (u.nombre_completo in nombres_existentes) %}
-    <option value="{{ u.email }}" {{ 'selected' if ya_esta else '' }}>
-      {{ u.nombre_completo or u.email.split('@')[0] }} — {{ u.email }}
-    </option>
-  {% endfor %}
-</select>
-
-
-        <div class="form-text">preciona ctrl y seleciona mas de uno.</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" id="btn-save-comerciales">Guardar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% endif %}
 
 <!-- Modal Seguimiento -->
 <div class="modal fade" id="modalSeguimiento" tabindex="-1" aria-hidden="true">
@@ -576,9 +588,7 @@
         .then(r => r.json())
         .then(j => {
           if (j.success) {
-            const m = bootstrap.Modal.getInstance(detalleModal);
-            if (m) m.hide();
-            location.reload();
+            alert('Cambios guardados correctamente');
           } else {
             alert('Error al guardar: ' + (j.error || 'desconocido'));
           }
